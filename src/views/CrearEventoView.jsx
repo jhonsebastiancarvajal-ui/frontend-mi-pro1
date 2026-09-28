@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, PlusCircle, Trash2, CheckCircle2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
+import { crearNuevoEvento, crearNuevaSubtarea } from '../services/api';
 
 export function CrearEventoView() {
   const navigate = useNavigate();
@@ -19,8 +20,9 @@ export function CrearEventoView() {
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [subtasks, setSubtasks] = useState([]);
-  const [newSubtask, setNewSubtask] = useState({ title: '', description: '', time: '', status: 'proxima' });
+  const [newSubtask, setNewSubtask] = useState({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
   const [showToast, setShowToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -28,9 +30,6 @@ export function CrearEventoView() {
     if (!formData.date) newErrors.date = 'La fecha es obligatoria';
     if (!formData.time) newErrors.time = 'El horario es obligatorio';
     if (!formData.description.trim()) newErrors.description = 'La descripción es obligatoria';
-    if (!formData.location.trim()) newErrors.location = 'La ubicación es obligatoria';
-    if (!formData.budget) newErrors.budget = 'El presupuesto es obligatorio';
-    if (!formData.attendees) newErrors.attendees = 'El número de invitados es obligatorio';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -38,27 +37,63 @@ export function CrearEventoView() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitted(true);
     if (validateForm()) {
-      setShowToast(true);
-      setTimeout(() => {
-        navigate('/hoy');
-      }, 2000);
+      setIsSubmitting(true);
+      try {
+        // Combinar campos extra en la descripción ya que el backend no los tiene
+        const fullDescription = `${formData.description}
+${formData.location ? `\nUbicación: ${formData.location}` : ''}
+${formData.time ? `\nHora: ${formData.time}` : ''}
+${formData.budget ? `\nPresupuesto: $${formData.budget}` : ''}
+${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
+
+        const eventData = {
+          title: formData.title,
+          due_date: formData.date,
+          description: fullDescription.trim(),
+          type: 'OTRO', // Por defecto para eventos
+          course: ''
+        };
+
+        const eventoCreado = await crearNuevoEvento(eventData);
+        
+        // Crear las subtareas
+        for (const task of subtasks) {
+          const subtaskData = {
+            title: task.title,
+            target_date: formData.date, // Usamos la fecha del evento
+            estimated_hours: parseFloat(task.estimated_hours),
+            description: task.description,
+            status: task.status
+          };
+          await crearNuevaSubtarea(eventoCreado.id, subtaskData);
+        }
+
+        setShowToast(true);
+        setTimeout(() => {
+          navigate('/hoy');
+        }, 2000);
+      } catch (error) {
+        console.error("Error guardando el evento:", error);
+        alert("Hubo un error al guardar el evento. Verifica la conexión.");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const handleAddSubtask = () => {
-    if (newSubtask.title.trim() && newSubtask.time) {
+    if (newSubtask.title.trim() && newSubtask.estimated_hours) {
       setSubtasks([...subtasks, { id: Date.now(), ...newSubtask }]);
-      setNewSubtask({ title: '', description: '', time: '', status: 'proxima' });
+      setNewSubtask({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
     }
   };
 
@@ -72,6 +107,7 @@ export function CrearEventoView() {
       <header className="pt-8 pb-6 border-b border-white/5 bg-background/50 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-3xl mx-auto px-6">
           <Button 
+            type="button"
             variant="ghost" 
             size="sm" 
             onClick={() => navigate(-1)}
@@ -181,22 +217,15 @@ export function CrearEventoView() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Ubicación *</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Ubicación (Opcional)</label>
                 <input 
                   type="text" 
                   name="location"
                   value={formData.location}
                   onChange={handleInputChange}
                   placeholder="Ej. Salón Principal, Hotel Plaza"
-                  className={`w-full px-4 py-3 rounded-xl bg-black/20 border text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
-                    errors.location 
-                      ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]' 
-                      : isSubmitted && !errors.location && formData.location 
-                        ? 'border-emerald-500/50 focus:border-emerald-500 focus:ring-emerald-500/50'
-                        : 'border-white/10 focus:border-primary/50 focus:ring-primary/50'
-                  }`}
+                  className={`w-full px-4 py-3 rounded-xl bg-black/20 border text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all border-white/10 focus:border-primary/50 focus:ring-primary/50`}
                 />
-                {errors.location && <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-red-500"></span>{errors.location}</p>}
               </div>
             </div>
           </section>
@@ -206,7 +235,7 @@ export function CrearEventoView() {
             <h2 className="text-xl font-outfit font-semibold text-white mb-6">Detalles Adicionales</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Presupuesto Estimado *</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Presupuesto Estimado (Opcional)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
                   <input 
@@ -215,35 +244,21 @@ export function CrearEventoView() {
                     value={formData.budget}
                     onChange={handleInputChange}
                     placeholder="0.00"
-                    className={`w-full pl-8 pr-4 py-3 rounded-xl bg-black/20 border text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
-                      errors.budget 
-                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]' 
-                        : isSubmitted && !errors.budget && formData.budget 
-                          ? 'border-emerald-500/50 focus:border-emerald-500 focus:ring-emerald-500/50'
-                          : 'border-white/10 focus:border-primary/50 focus:ring-primary/50'
-                    }`}
+                    className={`w-full pl-8 pr-4 py-3 rounded-xl bg-black/20 border text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all border-white/10 focus:border-primary/50 focus:ring-primary/50`}
                   />
                 </div>
-                {errors.budget && <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-red-500"></span>{errors.budget}</p>}
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Invitados Estimados *</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Invitados Estimados (Opcional)</label>
                 <input 
                   type="number" 
                   name="attendees"
                   value={formData.attendees}
                   onChange={handleInputChange}
                   placeholder="Ej. 150"
-                  className={`w-full px-4 py-3 rounded-xl bg-black/20 border text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
-                    errors.attendees 
-                      ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.1)]' 
-                      : isSubmitted && !errors.attendees && formData.attendees 
-                        ? 'border-emerald-500/50 focus:border-emerald-500 focus:ring-emerald-500/50'
-                        : 'border-white/10 focus:border-primary/50 focus:ring-primary/50'
-                  }`}
+                  className={`w-full px-4 py-3 rounded-xl bg-black/20 border text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all border-white/10 focus:border-primary/50 focus:ring-primary/50`}
                 />
-                {errors.attendees && <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-red-500"></span>{errors.attendees}</p>}
               </div>
             </div>
           </section>
@@ -272,10 +287,13 @@ export function CrearEventoView() {
                   </div>
                   <div>
                     <input 
-                      type="time"
-                      value={newSubtask.time}
-                      onChange={(e) => setNewSubtask({ ...newSubtask, time: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-black/20 border border-white/10 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      placeholder="Horas est. (Ej. 1.5)"
+                      value={newSubtask.estimated_hours}
+                      onChange={(e) => setNewSubtask({ ...newSubtask, estimated_hours: e.target.value })}
+                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-black/20 border border-white/10 text-white focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder-slate-500"
                     />
                   </div>
                   <div className="md:col-span-3 flex gap-3">
@@ -290,7 +308,7 @@ export function CrearEventoView() {
                     <Button 
                       type="button"
                       onClick={handleAddSubtask}
-                      disabled={!newSubtask.title.trim() || !newSubtask.time}
+                      disabled={!newSubtask.title.trim() || !newSubtask.estimated_hours}
                       className="bg-primary hover:bg-primary/90 text-white px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Añadir
@@ -308,7 +326,7 @@ export function CrearEventoView() {
                         <div>
                           <p className="text-slate-200 font-medium flex items-center gap-2">
                             {task.title} 
-                            <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">{task.time}</span>
+                            <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">{task.estimated_hours}h</span>
                           </p>
                           {task.description && <p className="text-sm text-slate-500 mt-1.5">{task.description}</p>}
                         </div>
@@ -339,10 +357,11 @@ export function CrearEventoView() {
             </Button>
             <Button 
               type="submit" 
-              className="px-8 py-6 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(var(--primary),0.3)] transition-all hover:scale-105"
+              disabled={isSubmitting}
+              className="px-8 py-6 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(var(--primary),0.3)] transition-all hover:scale-105 disabled:opacity-50"
             >
               <PlusCircle className="w-5 h-5 mr-2" />
-              Guardar Evento
+              {isSubmitting ? 'Guardando...' : 'Guardar Evento'}
             </Button>
           </div>
           

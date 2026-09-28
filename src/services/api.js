@@ -13,7 +13,7 @@
  */
 
 // Lee la URL de la API desde el archivo .env, o usa localhost por defecto si no existe.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'; // Django typically runs on 8000
 
 /**
  * Configuración genérica para las peticiones.
@@ -36,7 +36,7 @@ const getHeaders = () => {
  */
 export const fetchEventoPorId = async (eventoId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/eventos/${eventoId}`, {
+    const response = await fetch(`${API_BASE_URL}/activities/${eventoId}/`, {
       method: 'GET',
       headers: getHeaders(),
     });
@@ -55,8 +55,8 @@ export const fetchEventoPorId = async (eventoId) => {
  */
 export const actualizarEstadoSubtarea = async (subtareaId, nuevoEstado) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/tareas/${subtareaId}`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}/subtasks/${subtareaId}/`, {
+      method: 'PATCH', // Usually PATCH is better for partial update, or PUT if expected by backend
       headers: getHeaders(),
       body: JSON.stringify({ status: nuevoEstado })
     });
@@ -75,7 +75,7 @@ export const actualizarEstadoSubtarea = async (subtareaId, nuevoEstado) => {
  */
 export const crearNuevoEvento = async (datosEvento) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/eventos`, {
+    const response = await fetch(`${API_BASE_URL}/activities/`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(datosEvento)
@@ -90,4 +90,25 @@ export const crearNuevoEvento = async (datosEvento) => {
   }
 };
 
+/**
+ * Crear una nueva subtarea asociada a un evento.
+ */
+export const crearNuevaSubtarea = async (eventoId, datosSubtarea) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/activities/${eventoId}/subtasks/`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(datosSubtarea)
+    });
+
+    if (!response.ok) throw new Error('Error al crear la subtarea en el backend');
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error en crearNuevaSubtarea:", error);
+    throw error;
+  }
+};
+
 // ... El encargado del backend/frontend puede seguir añadiendo las demás rutas aquí abajo ...
+

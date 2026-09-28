@@ -50,8 +50,7 @@ const mockTasks = [
 
 export function DashboardHoy() {
   const navigate = useNavigate();
-  
-  const overdueTasks = mockTasks.filter(t => t.status === 'vencida');
+    const overdueTasks = mockTasks.filter(t => t.status === 'vencida');
   const urgentTasks = mockTasks.filter(t => t.status === 'urgente');
   const upcomingTasks = mockTasks.filter(t => t.status === 'proxima');
 
