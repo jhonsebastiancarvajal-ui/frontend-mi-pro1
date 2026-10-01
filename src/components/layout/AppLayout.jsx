@@ -1,12 +1,14 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, History, CalendarDays } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, History, CalendarDays, Award } from 'lucide-react';
 
 export function AppLayout() {
+  const navigate = useNavigate();
   const navItems = [
-    { name: 'Ayer', path: '/ayer', icon: History },
+    { name: 'Vencidas', path: '/ayer', icon: History },
     { name: 'Hoy', path: '/hoy', icon: LayoutDashboard },
     { name: 'Próximos', path: '/proximos', icon: CalendarDays },
+    { name: 'Completados', path: '/completados', icon: Award },
   ];
 
   return (
@@ -44,18 +46,48 @@ export function AppLayout() {
           
           {/* Auth Buttons */}
           <div className="flex items-center gap-3">
-            <NavLink 
-              to="/login"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
-            >
-              Iniciar sesión
-            </NavLink>
-            <NavLink 
-              to="/registro"
-              className="text-sm font-medium px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10"
-            >
-              Registrarme
-            </NavLink>
+            {localStorage.getItem('token') ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-white/5 rounded-full py-1 pr-3 pl-1 border border-white/10">
+                  {localStorage.getItem('user_picture') ? (
+                    <img src={localStorage.getItem('user_picture')} alt="Profile" className="w-7 h-7 rounded-full border border-white/20" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm border border-primary/30">
+                      {localStorage.getItem('user_name') ? localStorage.getItem('user_name').charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-slate-200 hidden sm:block">
+                    {localStorage.getItem('user_name')}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user_name');
+                    localStorage.removeItem('user_picture');
+                    navigate('/login');
+                  }}
+                  className="text-sm font-medium px-4 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 transition-colors border border-red-500/30"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            ) : (
+              <>
+                <NavLink 
+                  to="/login"
+                  className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                >
+                  Iniciar sesión
+                </NavLink>
+                <NavLink 
+                  to="/registro"
+                  className="text-sm font-medium px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10"
+                >
+                  Registrarme
+                </NavLink>
+              </>
+            )}
           </div>
         </div>
       </nav>

@@ -48,16 +48,16 @@ export function CrearEventoView() {
     if (validateForm()) {
       setIsSubmitting(true);
       try {
-        // Combinar campos extra en la descripción ya que el backend no los tiene
+        // Combinar solo campos que no existen en el backend (presupuesto, invitados)
         const fullDescription = `${formData.description}
-${formData.location ? `\nUbicación: ${formData.location}` : ''}
-${formData.time ? `\nHora: ${formData.time}` : ''}
 ${formData.budget ? `\nPresupuesto: $${formData.budget}` : ''}
 ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
 
         const eventData = {
           title: formData.title,
           due_date: formData.date,
+          time: formData.time ? (formData.time.length === 5 ? formData.time + ':00' : formData.time) : null,
+          location: formData.location,
           description: fullDescription.trim(),
           type: 'OTRO', // Por defecto para eventos
           course: ''
@@ -83,7 +83,7 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
         }, 2000);
       } catch (error) {
         console.error("Error guardando el evento:", error);
-        alert("Hubo un error al guardar el evento. Verifica la conexión.");
+        alert(`${error.message || "Hubo un error al guardar el evento."}`);
       } finally {
         setIsSubmitting(false);
       }
@@ -92,6 +92,10 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
 
   const handleAddSubtask = () => {
     if (newSubtask.title.trim() && newSubtask.estimated_hours) {
+      if (parseFloat(newSubtask.estimated_hours) > 999.99) {
+        alert("Las horas estimadas no pueden superar 999.99");
+        return;
+      }
       setSubtasks([...subtasks, { id: Date.now(), ...newSubtask }]);
       setNewSubtask({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
     }
@@ -290,6 +294,7 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
                       type="number"
                       step="0.5"
                       min="0.5"
+                      max="999.99"
                       placeholder="Horas est. (Ej. 1.5)"
                       value={newSubtask.estimated_hours}
                       onChange={(e) => setNewSubtask({ ...newSubtask, estimated_hours: e.target.value })}

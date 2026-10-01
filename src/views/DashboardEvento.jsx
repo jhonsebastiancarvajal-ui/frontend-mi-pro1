@@ -1,170 +1,289 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, Edit, Trash2, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
+import { 
+  fetchEventoPorId, 
+  eliminarEvento, 
+  actualizarEvento, 
+  actualizarDatosSubtarea, 
+  actualizarEstadoSubtarea,
+  eliminarSubtarea,
+  crearNuevaSubtarea 
+} from '../services/api';
 
 export function DashboardEvento() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [showSubtaskToast, setShowSubtaskToast] = useState(false);
+  const [eventDetails, setEventDetails] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleCompleteEvent = () => {
-    setIsCompleted(true);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
-
-  const [tasks, setTasks] = useState([
-    {
-      id: 101,
-      title: 'Confirmar catering',
-      description: 'Llamar a "Sabores del Mundo" para confirmar el menú vegetariano y las intolerancias.',
-      event: 'Evento Principal',
-      time: 'Hoy, 10:00 AM',
-      status: 'vencida',
-    },
-    {
-      id: 102,
-      title: 'Revisión de lista de invitados',
-      description: 'Actualizar las confirmaciones de asistencia recibidas durante la semana.',
-      event: 'Evento Principal',
-      time: 'Mañana, 09:00 AM',
-      status: 'proxima',
-    },
-    {
-      id: 103,
-      title: 'Pago a proveedores',
-      description: 'Abonar el 50% restante al florista y alquiladora de muebles.',
-      event: 'Evento Principal',
-      time: 'Viernes, 12:00 PM',
-      status: 'proxima',
-    },
-    {
-      id: 104,
-      title: 'Confirmar música',
-      description: 'Asegurar que el DJ tiene la playlist correcta para la recepción.',
-      event: 'Evento Principal',
-      time: 'Viernes, 04:00 PM',
-      status: 'proxima',
-    }
-  ]);
-
+  // Modals / Edit states
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
+  const [editEventData, setEditEventData] = useState({});
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [newTaskData, setNewTaskData] = useState({ title: '', target_date: '', estimated_hours: 1, description: '' });
+  
   const [selectedTask, setSelectedTask] = useState(null);
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [editTaskData, setEditTaskData] = useState({});
+
+  const [showToast, setShowToast] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 3;
-  
+
+  const loadEvent = async () => {
+    try {
+      const data = await fetchEventoPorId(id);
+      setEventDetails(data);
+      const mappedTasks = (data.subtasks || []).map(st => {
+        let stStatus = 'proxima';
+        if (st.status === 'PENDING') stStatus = 'urgente';
+        if (st.status === 'OVERDUE') stStatus = 'vencida';
+        if (st.status === 'DONE') stStatus = 'completada';
+        
+        return {
+          id: st.id,
+          title: st.title,
+          description: st.description || '',
+          event: data.title,
+          time: st.target_date,
+          status: stStatus,
+          estimated_hours: st.estimated_hours,
+          course: st.course
+        };
+      });
+      setTasks(mappedTasks);
+    } catch (error) {
+      console.error('Error cargando el evento', error);
+      navigate('/hoy');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEvent();
+  }, [id]);
+
+  const handleDeleteEvent = async () => {
+    try {
+      await eliminarEvento(id);
+      navigate('/hoy');
+    } catch (error) {
+      alert('Error al eliminar evento');
+    }
+  };
+
+  const handleUpdateEvent = async () => {
+    try {
+      const fullDescription = `${editEventData.description}
+${editEventData.budget ? `\nPresupuesto: $${editEventData.budget}` : ''}
+${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.trim();
+
+      const payload = { 
+        title: editEventData.title,
+        description: fullDescription,
+        due_date: editEventData.due_date,
+        location: editEventData.location,
+        time: editEventData.time,
+        status: editEventData.status 
+      };
+
+      if (payload.time && payload.time.length === 5) payload.time += ':00';
+      if (!payload.time) payload.time = null;
+      
+      await actualizarEvento(id, payload);
+      setIsEditingEvent(false);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      loadEvent();
+    } catch (error) {
+      alert('Error al actualizar evento');
+    }
+  };
+
+  const handleAddTask = async () => {
+    try {
+      await crearNuevaSubtarea(id, {
+        ...newTaskData,
+        activity_id: id,
+        course: "General",
+      });
+      setIsAddingTask(false);
+      setNewTaskData({ title: '', target_date: '', estimated_hours: 1, description: '' });
+      loadEvent();
+    } catch (error) {
+      alert('Error al crear tarea');
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    try {
+      await eliminarSubtarea(selectedTask.id);
+      setIsDeletingTask(false);
+      setSelectedTask(null);
+      setIsEditingTask(false);
+      loadEvent();
+    } catch (error) {
+      alert('Error al eliminar tarea');
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    try {
+      await actualizarDatosSubtarea(selectedTask.id, {
+        title: editTaskData.title,
+        description: editTaskData.description,
+        target_date: editTaskData.time,
+        estimated_hours: editTaskData.estimated_hours
+      });
+      setIsEditingTask(false);
+      setSelectedTask(null);
+      loadEvent();
+    } catch (error) {
+      alert('Error al actualizar tarea');
+    }
+  };
+
+  const handleToggleTask = async (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    const newStatusBackend = task.status === 'completada' ? 'PENDING' : 'DONE';
+    try {
+      await actualizarEstadoSubtarea(taskId, newStatusBackend);
+      loadEvent();
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask(null); // Close modal
+      }
+    } catch (error) {
+      alert('Error al actualizar estado');
+    }
+  };
+
+  if (loading) return <div className="text-center p-12 text-white">Cargando...</div>;
+  if (!eventDetails) return null;
+
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === 'completada').length;
   const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-  useEffect(() => {
-    if (totalTasks > 0 && completedTasks === totalTasks && !isCompleted) {
-      handleCompleteEvent();
-    }
-  }, [completedTasks, totalTasks, isCompleted]);
-
-  const handleToggleTask = (taskId) => {
-    setTasks(tasks.map(t => {
-      if (t.id === taskId) {
-        const newStatus = t.status === 'completada' ? 'proxima' : 'completada';
-        if (newStatus === 'completada') {
-          setShowSubtaskToast(true);
-          setTimeout(() => setShowSubtaskToast(false), 3000);
-        }
-        return { ...t, status: newStatus };
-      }
-      return t;
-    }));
-  };
-
-  const handleViewMoreTask = (task) => {
-    setSelectedTask(task);
-  };
-
+  
   const totalPages = Math.ceil(totalTasks / tasksPerPage);
   const paginatedTasks = tasks.slice((currentPage - 1) * tasksPerPage, currentPage * tasksPerPage);
 
-  const eventDetails = {
-    id: id,
-    title: 'Evento Principal (Simulado)',
-    description: 'Esta es la información detallada del evento que seleccionaste. Aquí puedes ver todos los datos relacionados, gestionar el equipo y revisar el presupuesto.',
-    date: '16 Septiembre 2026',
-    time: '14:00 PM - 20:00 PM',
-    location: 'Salón Principal, Hotel Plaza',
-    attendees: '250 Invitados',
-    status: 'En progreso',
-    budget: '$15,000 USD'
-  };
-
   return (
-    <div className="pb-12">
-      {/* Header */}
-      <header className="pt-8 pb-6 border-b border-white/5 bg-background/50 backdrop-blur-sm sticky top-16 z-40">
-        <div className="max-w-5xl mx-auto px-6">
+    <div className="pb-12 relative min-h-screen">
+      {/* Background elegant glows */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-[30%] left-[-10%] w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+      
+      <header className="pt-8 pb-6 border-b border-white/5 bg-background/50 backdrop-blur-xl sticky top-[64px] z-40">
+        <div className="max-w-5xl mx-auto px-6 relative z-10">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => navigate(-1)}
             className="text-slate-400 hover:text-white mb-4 -ml-2"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver
+            <ArrowLeft className="w-4 h-4 mr-2" /> Volver
           </Button>
           
           <div className="flex items-end justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${
-                  isCompleted ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-primary/20 text-primary border-primary/20'
-                }`}>
-                  {isCompleted ? 'Completado' : eventDetails.status}
+                <span className="px-3 py-1 text-xs font-semibold rounded-full border bg-primary/20 text-primary border-primary/20">
+                  {eventDetails.status}
                 </span>
-                <span className="text-slate-500 text-sm">ID: #{eventDetails.id}</span>
               </div>
               <h1 className="text-4xl font-outfit font-bold tracking-tight text-white mb-2">
                 {eventDetails.title}
               </h1>
             </div>
             
-            <Button 
-              onClick={handleCompleteEvent}
-              disabled={isCompleted}
-              className={`rounded-full ${
-                isCompleted 
-                  ? 'bg-emerald-500 text-white opacity-80' 
-                  : 'bg-white text-black hover:bg-slate-200'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {isCompleted ? 'Completado' : 'Marcar Completado'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  let desc = eventDetails.description || '';
+                  let budget = '';
+                  let attendees = '';
+                  
+                  const invitadosMatch = desc.match(/\nInvitados:\s*(.*)/);
+                  if (invitadosMatch) {
+                    attendees = invitadosMatch[1].trim();
+                    desc = desc.replace(invitadosMatch[0], '');
+                  }
+                  
+                  const presupuestoMatch = desc.match(/\nPresupuesto:\s*\$?(.*)/);
+                  if (presupuestoMatch) {
+                    budget = presupuestoMatch[1].trim();
+                    desc = desc.replace(presupuestoMatch[0], '');
+                  }
+
+                  const ubicacionMatch = desc.match(/(?:\r?\n)?Ubicación:\s*(.*)/);
+                  if (ubicacionMatch) {
+                    desc = desc.replace(ubicacionMatch[0], '');
+                  }
+
+                  const horaMatch = desc.match(/(?:\r?\n)?Hora:\s*(.*)/);
+                  if (horaMatch) {
+                    desc = desc.replace(horaMatch[0], '');
+                  }
+
+                  setEditEventData({ 
+                    title: eventDetails.title, 
+                    description: desc.trim(), 
+                    due_date: eventDetails.due_date, 
+                    time: eventDetails.time ? eventDetails.time.substring(0, 5) : '', 
+                    location: eventDetails.location || '',
+                    status: eventDetails.status,
+                    budget,
+                    attendees
+                  });
+                  setIsEditingEvent(true);
+                }}
+                className="rounded-full bg-slate-800 text-white hover:bg-slate-700 border border-white/10"
+              >
+                <Edit className="w-4 h-4 mr-2" /> Editar Evento
+              </Button>
+              <Button 
+                onClick={() => setIsDeletingEvent(true)}
+                className="rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 border border-red-500/20"
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Eliminar
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-5xl mx-auto px-6 pt-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Left Column (Info) */}
           <div className="md:col-span-2 space-y-6">
             <section className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
               <h2 className="text-xl font-outfit font-semibold text-white mb-4">Detalles del Evento</h2>
               <p className="text-slate-400 leading-relaxed">
-                {eventDetails.description}
+                {eventDetails.description || 'Sin descripción'}
               </p>
             </section>
             
             <section className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md flex flex-col">
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
-                  <h2 className="text-xl font-outfit font-semibold text-white mb-1">Agenda y Tareas</h2>
+                  <h2 className="text-xl font-outfit font-semibold text-white mb-1">Tareas</h2>
                   <p className="text-sm text-slate-400">{completedTasks} de {totalTasks} completadas</p>
                 </div>
+                <Button 
+                  onClick={() => setIsAddingTask(true)}
+                  size="sm"
+                  className="bg-primary/20 text-primary hover:bg-primary/30 rounded-full"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Añadir Subtarea
+                </Button>
               </div>
 
               <div className="flex flex-col gap-3">
@@ -173,12 +292,15 @@ export function DashboardEvento() {
                     key={task.id} 
                     task={task} 
                     onToggleComplete={handleToggleTask}
-                    onViewMore={handleViewMoreTask}
+                    onViewMore={(t) => {
+                      setSelectedTask(t);
+                      setEditTaskData(t);
+                    }}
                   />
                 ))}
+                {tasks.length === 0 && <p className="text-slate-400 text-sm py-4">No hay tareas creadas.</p>}
               </div>
               
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/5">
                   <span className="text-xs text-slate-500">
@@ -186,194 +308,386 @@ export function DashboardEvento() {
                   </span>
                   <div className="flex gap-2">
                     <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="bg-black/20 border-white/10 text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-black/20 px-3"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
-                    </Button>
+                      variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                      className="bg-black/20 text-white px-3"
+                    ><ChevronLeft className="w-4 h-4 mr-1" /> Anterior</Button>
                     <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="bg-black/20 border-white/10 text-white hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-black/20 px-3"
-                    >
-                      Siguiente <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+                      variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                      className="bg-black/20 text-white px-3"
+                    >Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
                   </div>
                 </div>
               )}
             </section>
           </div>
           
-          {/* Right Column (Sidebar) */}
           <div className="space-y-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md space-y-5">
               <h3 className="text-lg font-outfit font-semibold text-white">Resumen</h3>
-              
               <div className="space-y-4">
                 <div className="flex items-start gap-3 text-sm">
                   <Calendar className="w-5 h-5 text-primary mt-0.5" />
                   <div>
-                    <p className="text-white font-medium">Fecha</p>
-                    <p className="text-slate-400">{eventDetails.date}</p>
+                    <p className="text-white font-medium">Fecha Límite</p>
+                    <p className="text-slate-400">{eventDetails.due_date}</p>
                   </div>
                 </div>
-                
-                <div className="flex items-start gap-3 text-sm">
-                  <Clock className="w-5 h-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-white font-medium">Horario</p>
-                    <p className="text-slate-400">{eventDetails.time}</p>
+                {eventDetails.time && (
+                  <div className="flex items-start gap-3 text-sm">
+                    <Clock className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-white font-medium">Hora</p>
+                      <p className="text-slate-400">{eventDetails.time.substring(0, 5)}</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-3 text-sm">
-                  <MapPin className="w-5 h-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-white font-medium">Ubicación</p>
-                    <p className="text-slate-400">{eventDetails.location}</p>
+                )}
+                {eventDetails.location && (
+                  <div className="flex items-start gap-3 text-sm">
+                    <MapPin className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <p className="text-white font-medium">Ubicación</p>
+                      <p className="text-slate-400">{eventDetails.location}</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-3 text-sm">
-                  <Users className="w-5 h-5 text-primary mt-0.5" />
-                  <div>
-                    <p className="text-white font-medium">Asistencia</p>
-                    <p className="text-slate-400">{eventDetails.attendees}</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
             
-            <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 backdrop-blur-md">
-              <h3 className="text-sm font-medium text-primary mb-1">Presupuesto Asignado</h3>
-              <p className="text-3xl font-outfit font-bold text-white">{eventDetails.budget}</p>
-            </div>
-            
-            {/* Progress Box */}
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-              <h3 className="text-sm font-medium text-slate-300 mb-4">Progreso del Evento</h3>
+              <h3 className="text-sm font-medium text-slate-300 mb-4">Progreso</h3>
               <div className="w-full">
                 <div className="flex justify-between text-xs mb-2">
                   <span className="text-slate-400">{completedTasks} de {totalTasks} tareas</span>
                   <span className="text-emerald-400 font-medium">{progressPercentage}%</span>
                 </div>
                 <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500 transition-all duration-500 ease-out rounded-full" 
-                    style={{ width: `${progressPercentage}%` }}
-                  />
+                  <div className="h-full bg-emerald-500 transition-all duration-500 ease-out rounded-full" style={{ width: `${progressPercentage}%` }} />
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </main>
 
-      {/* Floating Mini Dashboard (Modal) */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div 
-            className="absolute inset-0"
-            onClick={() => setSelectedTask(null)}
-          />
-          <div className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className={`p-6 border-b border-white/5 ${
-              selectedTask.status === 'vencida' ? 'bg-red-500/10' :
-              selectedTask.status === 'completada' ? 'bg-emerald-500/10' :
-              selectedTask.status === 'urgente' ? 'bg-amber-500/10' :
-              'bg-primary/10'
-            }`}>
-              <div className="flex justify-between items-start mb-2">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  selectedTask.status === 'vencida' ? 'bg-red-500/20 text-red-400 border border-red-500/20' :
-                  selectedTask.status === 'completada' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' :
-                  selectedTask.status === 'urgente' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' :
-                  'bg-primary/20 text-primary border border-primary/20'
-                }`}>
-                  {selectedTask.status.charAt(0).toUpperCase() + selectedTask.status.slice(1)}
-                </span>
-                <button 
-                  onClick={() => setSelectedTask(null)}
-                  className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+      {/* Edit Event Modal */}
+      {isEditingEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="relative w-full max-w-3xl bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200 my-8">
+            <button 
+              onClick={() => setIsEditingEvent(false)} 
+              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                <Edit className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="text-xl font-outfit font-semibold text-white pr-6">
-                {selectedTask.title}
-              </h3>
+              <h3 className="text-2xl font-outfit font-bold text-white">Editar Evento</h3>
             </div>
             
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-              <p className="text-slate-300 text-sm leading-relaxed">
-                {selectedTask.description}
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
-                  <div className="flex items-center gap-2 text-slate-400 mb-1">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-xs font-medium uppercase tracking-wider">Evento</span>
+            <div className="space-y-6">
+              <section className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                <h2 className="text-xl font-outfit font-semibold text-white mb-6">Información General</h2>
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Título del evento *</label>
+                    <input 
+                      value={editEventData.title} 
+                      onChange={e => setEditEventData({...editEventData, title: e.target.value})} 
+                      className="w-full bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                      placeholder="Ej. Boda García-López"
+                    />
                   </div>
-                  <p className="text-sm text-white font-medium">{selectedTask.event}</p>
-                </div>
-                <div className="bg-black/20 rounded-xl p-4 border border-white/5">
-                  <div className="flex items-center gap-2 text-slate-400 mb-1">
-                    {selectedTask.status === 'vencida' ? <AlertCircle className="w-4 h-4 text-red-400" /> : <Clock className="w-4 h-4" />}
-                    <span className="text-xs font-medium uppercase tracking-wider">Horario</span>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Descripción *</label>
+                    <textarea 
+                      value={editEventData.description} 
+                      onChange={e => setEditEventData({...editEventData, description: e.target.value})} 
+                      className="w-full bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl px-4 py-3 text-white transition-all outline-none min-h-[100px] resize-none" 
+                      placeholder="Detalles adicionales sobre el evento..."
+                    />
                   </div>
-                  <p className={`text-sm font-medium ${selectedTask.status === 'vencida' ? 'text-red-400' : 'text-white'}`}>
-                    {selectedTask.time}
-                  </p>
                 </div>
-              </div>
+              </section>
+
+              <section className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                <h2 className="text-xl font-outfit font-semibold text-white mb-6">Cuándo y Dónde</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Fecha Límite *</label>
+                    <input 
+                      type="date" 
+                      value={editEventData.due_date} 
+                      onChange={e => setEditEventData({...editEventData, due_date: e.target.value})} 
+                      className="w-full bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Hora *</label>
+                    <input 
+                      type="time" 
+                      value={editEventData.time} 
+                      onChange={e => setEditEventData({...editEventData, time: e.target.value})} 
+                      className="w-full bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Ubicación (Opcional)</label>
+                    <input 
+                      value={editEventData.location} 
+                      onChange={e => setEditEventData({...editEventData, location: e.target.value})} 
+                      className="w-full bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                      placeholder="Ej. Salón Principal, Hotel Plaza"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                <h2 className="text-xl font-outfit font-semibold text-white mb-6">Detalles Adicionales</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Presupuesto Estimado (Opcional)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <input 
+                        type="number" 
+                        value={editEventData.budget || ''} 
+                        onChange={e => setEditEventData({...editEventData, budget: e.target.value})} 
+                        className="w-full pl-8 pr-4 py-3 bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl text-white transition-all outline-none" 
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-1.5 block">Invitados Estimados (Opcional)</label>
+                    <input 
+                      type="number" 
+                      value={editEventData.attendees || ''} 
+                      onChange={e => setEditEventData({...editEventData, attendees: e.target.value})} 
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 rounded-xl text-white transition-all outline-none" 
+                      placeholder="Ej. 150"
+                    />
+                  </div>
+                </div>
+              </section>
             </div>
-            
-            {/* Modal Footer */}
-            <div className="p-4 bg-black/40 border-t border-white/5 flex justify-end">
-              <Button 
-                onClick={() => {
-                  handleToggleTask(selectedTask.id);
-                  // Opcional: Cerrar modal si no queremos que se quede abierto al completar
-                  // setSelectedTask(null); 
-                  
-                  // Actualizamos el selectedTask en el modal para que refleje el cambio instantáneamente
-                  setSelectedTask(prev => ({ ...prev, status: prev.status === 'completada' ? 'proxima' : 'completada' }));
-                }}
-                className={`rounded-xl px-6 ${
-                  selectedTask.status === 'completada'
-                    ? 'bg-slate-700 hover:bg-slate-600 text-white'
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-                }`}
-              >
-                {selectedTask.status === 'completada' ? 'Desmarcar' : 'Completar Tarea'}
+
+            <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-white/10">
+              <Button onClick={() => setIsEditingEvent(false)} variant="ghost" className="text-slate-300 hover:text-white">
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateEvent} className="px-8 py-6 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(var(--primary),0.3)] transition-all hover:scale-105">
+                Guardar Cambios
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Success Toast (Event) */}
-      {showToast && (
-        <div className="fixed bottom-6 right-6 bg-emerald-500/90 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(16,185,129,0.3)] flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300 z-50 border border-emerald-400/20">
-          <CheckCircle2 className="w-5 h-5 text-white" />
-          <span className="font-medium font-outfit">¡Evento marcado como completado!</span>
+      {/* Delete Event Confirmation Modal */}
+      {isDeletingEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm bg-slate-900 border border-red-500/20 rounded-2xl p-6 text-center shadow-[0_0_40px_rgba(239,68,68,0.15)]">
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+              <AlertCircle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-xl font-outfit font-semibold text-white mb-2">¿Eliminar evento?</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Esta acción eliminará permanentemente el evento <strong>{eventDetails.title}</strong> y todas sus tareas asociadas. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setIsDeletingEvent(false)} className="flex-1 text-slate-300 hover:text-white hover:bg-white/5">
+                Cancelar
+              </Button>
+              <Button onClick={handleDeleteEvent} className="flex-1 bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                Sí, eliminar
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Subtask Success Toast */}
-      {showSubtaskToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2.5 animate-in slide-in-from-bottom-5 fade-in duration-300 z-50 border border-white/10">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm font-medium">Subtarea completada</span>
+      {/* Add Task Modal */}
+      {isAddingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsAddingTask(false)} 
+              className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                <Plus className="w-5 h-5 text-emerald-400" />
+              </div>
+              <h3 className="text-2xl font-outfit font-bold text-white">Añadir Nueva Subtarea</h3>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <label className="text-slate-300 text-sm font-medium mb-2 block">Título de la tarea</label>
+                <input 
+                  value={newTaskData.title} 
+                  onChange={e => setNewTaskData({...newTaskData, title: e.target.value})} 
+                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                  placeholder="¿Qué necesitas hacer?"
+                />
+              </div>
+              <div>
+                <label className="text-slate-300 text-sm font-medium mb-2 block">Descripción</label>
+                <textarea 
+                  value={newTaskData.description} 
+                  onChange={e => setNewTaskData({...newTaskData, description: e.target.value})} 
+                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none min-h-[100px] resize-none" 
+                  placeholder="Detalles sobre cómo completar la tarea..."
+                />
+              </div>
+              <div>
+                <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
+                <input 
+                  type="date" 
+                  value={newTaskData.target_date} 
+                  onChange={e => setNewTaskData({...newTaskData, target_date: e.target.value})} 
+                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-8 pt-6 border-t border-white/10">
+              <Button onClick={() => setIsAddingTask(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-12">
+                Cancelar
+              </Button>
+              <Button onClick={handleAddTask} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl h-12 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                Crear Tarea
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Details / Edit Modal */}
+      {selectedTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 bg-white/5 border-b border-white/10 flex justify-between items-center relative">
+              <h3 className="text-xl font-outfit font-bold text-white pr-8 truncate">
+                {isEditingTask ? 'Editar Subtarea' : selectedTask.title}
+              </h3>
+              <button 
+                onClick={() => { setSelectedTask(null); setIsEditingTask(false); }} 
+                className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors bg-white/5 p-1.5 rounded-full hover:bg-white/10"
+              >
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+            
+            <div className="p-8">
+              {isEditingTask ? (
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-2 block">Título</label>
+                    <input 
+                      value={editTaskData.title} 
+                      onChange={e => setEditTaskData({...editTaskData, title: e.target.value})} 
+                      className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-2 block">Descripción</label>
+                    <textarea 
+                      value={editTaskData.description} 
+                      onChange={e => setEditTaskData({...editTaskData, description: e.target.value})} 
+                      className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none min-h-[100px] resize-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
+                    <input 
+                      type="date" 
+                      value={editTaskData.time} 
+                      onChange={e => setEditTaskData({...editTaskData, time: e.target.value})} 
+                      className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
+                    />
+                  </div>
+                  <div className="flex gap-3 mt-8 pt-6 border-t border-white/10">
+                    <Button onClick={() => setIsEditingTask(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-12">
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleUpdateTask} className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-xl h-12 shadow-[0_0_20px_rgba(var(--primary),0.3)]">
+                      Guardar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-slate-400 text-sm font-medium mb-1 uppercase tracking-wider">Descripción</p>
+                    <p className="text-slate-200 leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5">
+                      {selectedTask.description || <span className="italic text-slate-500">Sin descripción</span>}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 bg-black/20 p-4 rounded-xl border border-white/5 w-fit">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="text-slate-400 text-xs font-medium uppercase">Fecha Objetivo</p>
+                      <p className="text-white font-medium">{selectedTask.time}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 pt-6 border-t border-white/10">
+                    <Button onClick={() => setIsEditingTask(true)} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl h-11">
+                      <Edit className="w-4 h-4 mr-2" /> Editar
+                    </Button>
+                    <Button 
+                      onClick={() => handleToggleTask(selectedTask.id)} 
+                      className={`flex-[1.5] text-white rounded-xl h-11 shadow-lg ${selectedTask.status === 'completada' ? 'bg-slate-600 hover:bg-slate-700' : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.3)]'}`}
+                    >
+                      {selectedTask.status === 'completada' ? 'Marcar como Pendiente' : 'Completar Tarea'}
+                    </Button>
+                    <Button 
+                      onClick={() => setIsDeletingTask(true)} 
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 rounded-xl h-11 transition-all hover:scale-105"
+                      title="Eliminar tarea"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Modal */}
+      {isDeletingTask && selectedTask && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm bg-slate-900 border border-red-500/20 rounded-2xl p-6 text-center shadow-[0_0_40px_rgba(239,68,68,0.15)]">
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+              <AlertCircle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-xl font-outfit font-semibold text-white mb-2">¿Eliminar tarea?</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Estás a punto de eliminar la tarea <strong>{selectedTask.title}</strong>. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setIsDeletingTask(false)} className="flex-1 text-slate-300 hover:text-white hover:bg-white/5">
+                Cancelar
+              </Button>
+              <Button onClick={handleDeleteTask} className="flex-1 bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                Sí, eliminar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showToast && (
+        <div className="fixed bottom-6 right-6 bg-emerald-500/90 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(16,185,129,0.3)] flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[70] border border-emerald-400/20">
+          <CheckCircle2 className="w-5 h-5 text-white" />
+          <span className="font-medium font-outfit">¡Se han guardado los cambios!</span>
         </div>
       )}
     </div>

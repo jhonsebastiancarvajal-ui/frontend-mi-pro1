@@ -8,17 +8,17 @@ import { CrearEventoView } from './views/CrearEventoView'
 import { LoginView } from './views/auth/LoginView'
 import { RegisterView } from './views/auth/RegisterView'
 
-// Placeholder for future component
-function DashboardProximos() {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-outfit text-white mb-2">Próximos Eventos</h2>
-        <p className="text-slate-400">Esta sección estará disponible pronto.</p>
-      </div>
-    </div>
-  )
-}
+import { DashboardProximos } from './views/DashboardProximos'
+import { DashboardCompletados } from './views/DashboardCompletados'
+
+// Forzar actualización de Vite
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
 
 function App() {
   return (
@@ -28,7 +28,11 @@ function App() {
       <Route path="/registro" element={<RegisterView />} />
 
       {/* Main Layout Routes */}
-      <Route path="/" element={<AppLayout />}>
+      <Route path="/" element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      }>
         {/* Redirect root to /hoy */}
         <Route index element={<Navigate to="/hoy" replace />} />
         
@@ -36,6 +40,7 @@ function App() {
         <Route path="hoy" element={<DashboardHoy />} />
         <Route path="ayer" element={<DashboardAyer />} />
         <Route path="proximos" element={<DashboardProximos />} />
+        <Route path="completados" element={<DashboardCompletados />} />
         <Route path="evento/:id" element={<DashboardEvento />} />
         <Route path="crear" element={<CrearEventoView />} />
       </Route>

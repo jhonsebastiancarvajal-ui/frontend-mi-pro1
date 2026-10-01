@@ -113,7 +113,7 @@ export function TaskItem({ task, onToggleComplete, onViewMore }) {
                 </button>
               ) : (
                 <Link 
-                  to={`/evento/${task.id}`} 
+                  to={`/evento/${task.activity_id || task.id}`} 
                   className={cn(
                     "flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full transition-colors",
                     isOverdue ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : 
