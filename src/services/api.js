@@ -250,3 +250,47 @@ export const eliminarSubtarea = async (subtareaId) => {
     throw error;
   }
 };
+
+export const checkOverload = async (target_date, estimated_hours, subtask_id = null) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/conflicts/overload/`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ target_date, estimated_hours, subtask_id })
+    });
+    if (!response.ok) throw new Error('Error al verificar sobrecarga');
+    return await response.json();
+  } catch (error) {
+    console.error("Error en checkOverload:", error);
+    throw error;
+  }
+};
+
+export const getCapacity = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/capacity/`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Error al obtener capacidad');
+    return await response.json();
+  } catch (error) {
+    console.error("Error en getCapacity:", error);
+    throw error;
+  }
+};
+
+export const updateCapacity = async (daily_limit_hours) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/capacity/`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ daily_limit_hours })
+    });
+    if (!response.ok) throw new Error('Error al actualizar capacidad');
+    return await response.json();
+  } catch (error) {
+    console.error("Error en updateCapacity:", error);
+    throw error;
+  }
+};

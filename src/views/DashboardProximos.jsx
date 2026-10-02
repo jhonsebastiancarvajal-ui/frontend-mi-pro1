@@ -24,12 +24,13 @@ export function DashboardProximos() {
     loadEventos();
   }, []);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date();
+  tomorrow.setHours(0, 0, 0, 0);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
   const proximos = eventos.filter(e => {
     const dueDate = new Date(e.due_date + 'T00:00:00');
-    return dueDate >= today;
+    return dueDate >= tomorrow;
   });
 
   return (

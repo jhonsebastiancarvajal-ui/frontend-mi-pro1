@@ -10,7 +10,8 @@ import {
   actualizarDatosSubtarea, 
   actualizarEstadoSubtarea,
   eliminarSubtarea,
-  crearNuevaSubtarea 
+  crearNuevaSubtarea,
+  checkOverload
 } from '../services/api';
 
 export function DashboardEvento() {
@@ -33,6 +34,8 @@ export function DashboardEvento() {
   const [isEditingTask, setIsEditingTask] = useState(false);
   const [editTaskData, setEditTaskData] = useState({});
 
+  const [conflictData, setConflictData] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
   const [showToast, setShowToast] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,8 +114,22 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
   const handleAddTask = async () => {
     try {
+      const overloadCheck = await checkOverload(newTaskData.target_date, newTaskData.estimated_hours);
+      if (overloadCheck.conflict) {
+        setConflictData(overloadCheck);
+        setPendingAction({ type: 'ADD', data: newTaskData });
+        return;
+      }
+      await executeAddTask(newTaskData);
+    } catch (error) {
+      alert('Error al verificar tarea');
+    }
+  };
+
+  const executeAddTask = async (dataToSave) => {
+    try {
       await crearNuevaSubtarea(id, {
-        ...newTaskData,
+        ...dataToSave,
         activity_id: id,
         course: "General",
       });
@@ -138,11 +155,25 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
   const handleUpdateTask = async () => {
     try {
-      await actualizarDatosSubtarea(selectedTask.id, {
-        title: editTaskData.title,
-        description: editTaskData.description,
-        target_date: editTaskData.time,
-        estimated_hours: editTaskData.estimated_hours
+      const overloadCheck = await checkOverload(editTaskData.time, editTaskData.estimated_hours, selectedTask.id);
+      if (overloadCheck.conflict) {
+        setConflictData(overloadCheck);
+        setPendingAction({ type: 'UPDATE', data: editTaskData, id: selectedTask.id });
+        return;
+      }
+      await executeUpdateTask(editTaskData, selectedTask.id);
+    } catch (error) {
+      alert('Error al verificar tarea');
+    }
+  };
+
+  const executeUpdateTask = async (dataToSave, taskId) => {
+    try {
+      await actualizarDatosSubtarea(taskId, {
+        title: dataToSave.title,
+        description: dataToSave.description,
+        target_date: dataToSave.time || dataToSave.target_date,
+        estimated_hours: dataToSave.estimated_hours
       });
       setIsEditingTask(false);
       setSelectedTask(null);
@@ -544,14 +575,27 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                   placeholder="Detalles sobre cómo completar la tarea..."
                 />
               </div>
-              <div>
-                <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
-                <input 
-                  type="date" 
-                  value={newTaskData.target_date} 
-                  onChange={e => setNewTaskData({...newTaskData, target_date: e.target.value})} 
-                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
+                  <input 
+                    type="date" 
+                    value={newTaskData.target_date} 
+                    onChange={e => setNewTaskData({...newTaskData, target_date: e.target.value})} 
+                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-300 text-sm font-medium mb-2 block">Horas Estimadas</label>
+                  <input 
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    value={newTaskData.estimated_hours} 
+                    onChange={e => setNewTaskData({...newTaskData, estimated_hours: parseFloat(e.target.value) || 0.5})} 
+                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                  />
+                </div>
               </div>
             </div>
             <div className="flex gap-3 mt-8 pt-6 border-t border-white/10">
@@ -601,14 +645,27 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                       className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none min-h-[100px] resize-none" 
                     />
                   </div>
-                  <div>
-                    <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
-                    <input 
-                      type="date" 
-                      value={editTaskData.time} 
-                      onChange={e => setEditTaskData({...editTaskData, time: e.target.value})} 
-                      className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
+                      <input 
+                        type="date" 
+                        value={editTaskData.time} 
+                        onChange={e => setEditTaskData({...editTaskData, time: e.target.value})} 
+                        className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm font-medium mb-2 block">Horas Estimadas</label>
+                      <input 
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        value={editTaskData.estimated_hours} 
+                        onChange={e => setEditTaskData({...editTaskData, estimated_hours: parseFloat(e.target.value) || 0.5})} 
+                        className="w-full bg-black/40 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-3 mt-8 pt-6 border-t border-white/10">
                     <Button onClick={() => setIsEditingTask(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-12">
@@ -688,6 +745,97 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
         <div className="fixed bottom-6 right-6 bg-emerald-500/90 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(16,185,129,0.3)] flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300 z-[70] border border-emerald-400/20">
           <CheckCircle2 className="w-5 h-5 text-white" />
           <span className="font-medium font-outfit">¡Se han guardado los cambios!</span>
+        </div>
+      )}
+
+      {/* Conflict Modal (Sprint 3) */}
+      {conflictData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-slate-900 border border-amber-500/30 rounded-3xl p-8 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30 shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+              </div>
+              <h3 className="text-xl font-outfit font-bold text-white">Sobrecarga Detectada</h3>
+            </div>
+            
+            <p className="text-slate-300 mb-6 leading-relaxed">
+              Quedarías con <strong className="text-amber-400">{conflictData.planned_hours}h planificadas</strong>, pero tu límite es de <strong className="text-white">{conflictData.limit_hours}h</strong>. Tienes un exceso de <span className="text-red-400 font-medium">{conflictData.exceeds_by}h</span>.
+            </p>
+
+            <div className="space-y-4 mb-8">
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                <p className="text-sm font-medium text-white mb-3">Opción 1: Reducir las horas</p>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max={pendingAction?.data?.estimated_hours - conflictData.exceeds_by > 0.5 ? pendingAction?.data?.estimated_hours - conflictData.exceeds_by : 0.5}
+                    value={pendingAction?.data?.estimated_hours || ''}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0.5;
+                      setPendingAction(prev => ({
+                        ...prev,
+                        data: {
+                          ...prev.data,
+                          estimated_hours: val
+                        }
+                      }));
+                    }}
+                    className="w-24 bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white" 
+                  />
+                  <span className="text-sm text-slate-400">horas (Recomendado: {Math.max(0.5, pendingAction?.data?.estimated_hours - conflictData.exceeds_by)}h)</span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                <p className="text-sm font-medium text-white mb-3">Opción 2: Mover a otra fecha</p>
+                <input 
+                  type="date"
+                  value={pendingAction?.data?.target_date || pendingAction?.data?.time || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPendingAction(prev => ({
+                      ...prev,
+                      data: {
+                        ...prev.data,
+                        target_date: val,
+                        time: val
+                      }
+                    }));
+                  }}
+                  className="w-full bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white [color-scheme:dark]" 
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-6 border-t border-white/10">
+              <Button 
+                onClick={() => {
+                  setConflictData(null);
+                  setPendingAction(null);
+                }} 
+                className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-11"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={() => {
+                  setConflictData(null);
+                  if (pendingAction.type === 'ADD') {
+                    executeAddTask(pendingAction.data);
+                  } else {
+                    executeUpdateTask(pendingAction.data, pendingAction.id);
+                  }
+                  setPendingAction(null);
+                }} 
+                className="flex-[1.5] bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] rounded-xl h-11"
+              >
+                Reintentar Guardado
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
