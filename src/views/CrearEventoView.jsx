@@ -91,14 +91,16 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
   };
 
   const handleAddSubtask = () => {
-    if (newSubtask.title.trim() && newSubtask.estimated_hours) {
-      if (parseFloat(newSubtask.estimated_hours) > 999.99) {
-        alert("Las horas estimadas no pueden superar 999.99");
-        return;
-      }
-      setSubtasks([...subtasks, { id: Date.now(), ...newSubtask }]);
-      setNewSubtask({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
+    if (!newSubtask.title.trim() || !newSubtask.estimated_hours) {
+      alert("Por favor, ingresa el título y las horas estimadas para poder añadir la tarea.");
+      return;
     }
+    if (parseFloat(newSubtask.estimated_hours) > 999.99) {
+      alert("Las horas estimadas no pueden superar 999.99");
+      return;
+    }
+    setSubtasks([...subtasks, { id: Date.now(), ...newSubtask }]);
+    setNewSubtask({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
   };
 
   const handleRemoveSubtask = (id) => {

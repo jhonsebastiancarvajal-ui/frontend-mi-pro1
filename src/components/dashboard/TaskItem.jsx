@@ -93,12 +93,6 @@ export function TaskItem({ task, onToggleComplete, onViewMore }) {
                  <Clock className="w-3.5 h-3.5" />}
                 <span>{task.time}</span>
               </div>
-              {task.estimated_hours && (
-                <div className="flex items-center gap-1.5 font-medium text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                  <Clock className="w-3 h-3" />
-                  <span>{task.estimated_hours}h</span>
-                </div>
-              )}
             </div>
             
             {/* View More Button */}

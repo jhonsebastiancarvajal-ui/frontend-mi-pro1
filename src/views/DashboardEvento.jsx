@@ -113,8 +113,8 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
   };
 
   const handleAddTask = async () => {
-    if (!newTaskData.title.trim() || !newTaskData.target_date) {
-      alert("Por favor completa el título y la fecha objetivo.");
+    if (!newTaskData.title || !newTaskData.target_date || !newTaskData.estimated_hours) {
+      alert("Por favor, llena todos los campos obligatorios (Título, Fecha Objetivo, Horas Estimadas).");
       return;
     }
     try {
@@ -158,13 +158,12 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
   };
 
   const handleUpdateTask = async () => {
-    const finalDate = editTaskData.time || editTaskData.target_date;
-    if (!editTaskData.title.trim() || !finalDate) {
-      alert("Por favor completa el título y la fecha objetivo.");
+    if (!editTaskData.title || !editTaskData.time || !editTaskData.estimated_hours) {
+      alert("Por favor, llena todos los campos obligatorios (Título, Fecha Objetivo, Horas Estimadas).");
       return;
     }
     try {
-      const overloadCheck = await checkOverload(finalDate, editTaskData.estimated_hours, selectedTask.id);
+      const overloadCheck = await checkOverload(editTaskData.time, editTaskData.estimated_hours, selectedTask.id);
       if (overloadCheck.conflict) {
         setConflictData(overloadCheck);
         setPendingAction({ type: 'UPDATE', data: editTaskData, id: selectedTask.id });
@@ -695,7 +694,7 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                   </div>
                   
                   <div className="flex gap-4">
-                    <div className="flex items-center gap-3 bg-black/20 p-4 rounded-xl border border-white/5 w-fit">
+                    <div className="flex items-center gap-3 bg-black/20 p-4 rounded-xl border border-white/5 flex-1">
                       <Calendar className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-slate-400 text-xs font-medium uppercase">Fecha Objetivo</p>
@@ -703,10 +702,10 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3 bg-black/20 p-4 rounded-xl border border-white/5 w-fit">
+                    <div className="flex items-center gap-3 bg-black/20 p-4 rounded-xl border border-white/5 flex-1">
                       <Clock className="w-5 h-5 text-amber-500" />
                       <div>
-                        <p className="text-slate-400 text-xs font-medium uppercase">Tiempo Estimado</p>
+                        <p className="text-slate-400 text-xs font-medium uppercase">Horas Estimadas</p>
                         <p className="text-white font-medium">{selectedTask.estimated_hours}h</p>
                       </div>
                     </div>
