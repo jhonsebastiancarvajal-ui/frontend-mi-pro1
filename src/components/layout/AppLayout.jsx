@@ -20,6 +20,7 @@ export function AppLayout() {
       setIsSaving(true);
       await updateCapacity(dailyLimit);
       setIsSettingsOpen(false);
+      alert(`¡Límite diario actualizado exitosamente a ${dailyLimit}h!`);
     } catch (e) {
       alert("Error al guardar límite diario");
     } finally {
