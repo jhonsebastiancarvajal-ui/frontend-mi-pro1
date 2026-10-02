@@ -29,7 +29,7 @@ export function DashboardProximos() {
 
   const proximos = eventos.filter(e => {
     const dueDate = new Date(e.due_date + 'T00:00:00');
-    return dueDate > today;
+    return dueDate >= today;
   });
 
   return (
