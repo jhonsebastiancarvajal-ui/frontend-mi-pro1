@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save } from 'lucide-react';
+import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2 } from 'lucide-react';
 import { clearApiCache, getCapacity, updateCapacity } from '../../services/api';
 
 export function AppLayout() {
@@ -8,6 +8,7 @@ export function AppLayout() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [dailyLimit, setDailyLimit] = useState(6);
   const [isSaving, setIsSaving] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -20,7 +21,8 @@ export function AppLayout() {
       setIsSaving(true);
       await updateCapacity(dailyLimit);
       setIsSettingsOpen(false);
-      alert(`¡Límite diario actualizado exitosamente a ${dailyLimit}h!`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } catch (e) {
       alert("Error al guardar límite diario");
     } finally {
@@ -178,6 +180,21 @@ export function AppLayout() {
               >
                 {isSaving ? "Guardando..." : <><Save className="w-4 h-4" /> Guardar</>}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-[200] animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md text-emerald-50 px-6 py-4 rounded-2xl shadow-[0_10px_40px_rgba(16,185,129,0.15)] flex items-center gap-3">
+            <div className="bg-emerald-500/20 rounded-full p-1">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className="font-outfit font-medium text-emerald-300">Configuración guardada</p>
+              <p className="text-sm text-emerald-100/70">Límite diario actualizado exitosamente a {dailyLimit}h</p>
             </div>
           </div>
         </div>
