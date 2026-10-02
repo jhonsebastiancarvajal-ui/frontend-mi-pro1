@@ -15,6 +15,7 @@ export function DashboardHoy() {
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isPopupRendered, setIsPopupRendered] = useState(false);
   const [showAllProximas, setShowAllProximas] = useState(false);
+  const [showAllParaHoy, setShowAllParaHoy] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -198,9 +199,19 @@ export function DashboardHoy() {
                      <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
                     Urgente para hoy
                   </h2>
+                  {tasks.para_hoy.length > 2 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-slate-400 hover:text-white"
+                      onClick={() => setShowAllParaHoy(!showAllParaHoy)}
+                    >
+                      {showAllParaHoy ? 'Ver menos' : 'Ver todas'} <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tasks.para_hoy.map(task => (
+                  {(showAllParaHoy ? tasks.para_hoy : tasks.para_hoy.slice(0, 2)).map(task => (
                     <TaskItem key={task.id} task={task} onToggleComplete={handleToggleTask} />
                   ))}
                 </div>
