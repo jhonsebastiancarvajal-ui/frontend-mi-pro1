@@ -15,8 +15,9 @@ export function RegisterView() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.email.endsWith('@correounivalle.edu.co')) {
-      setError('Solo se permiten correos institucionales @correounivalle.edu.co');
+
+    if (!formData.email.endsWith('@correounivalle.edu.co') && !formData.email.endsWith('@gmail.com')) {
+      setError('Solo se permiten correos @correounivalle.edu.co o @gmail.com');
       return;
     }
 
@@ -84,7 +85,7 @@ export function RegisterView() {
             <LayoutDashboard className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-3xl font-outfit font-bold text-white mb-2">Crea tu cuenta</h1>
-          <p className="text-slate-400">Exclusivo para la comunidad @correounivalle.edu.co</p>
+          <p className="text-slate-400">Únete a nuestra plataforma</p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl shadow-2xl flex flex-col">
@@ -108,10 +109,10 @@ export function RegisterView() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Correo institucional</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Correo electrónico</label>
               <input 
                 type="email" 
-                placeholder="tu@correounivalle.edu.co"
+                placeholder="tu@correounivalle.edu.co o @gmail.com"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 transition-all"

@@ -11,9 +11,9 @@ export function LoginView() {
 
   const handleTraditionalLogin = async (e) => {
     e.preventDefault();
-    
-    if (!email.endsWith('@correounivalle.edu.co')) {
-      setError('Solo se puede iniciar sesión con una cuenta @correounivalle.edu.co');
+
+    if (!email.endsWith('@correounivalle.edu.co') && !email.endsWith('@gmail.com')) {
+      setError('Solo se permite iniciar sesión con cuentas @correounivalle.edu.co o @gmail.com');
       return;
     }
 
@@ -94,10 +94,10 @@ export function LoginView() {
 
           <form onSubmit={handleTraditionalLogin} className="space-y-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Correo institucional</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">Correo electrónico</label>
               <input 
                 type="email" 
-                placeholder="tu@correounivalle.edu.co"
+                placeholder="tu@correounivalle.edu.co o @gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
