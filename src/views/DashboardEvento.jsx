@@ -796,7 +796,7 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
             <div className="space-y-4 mb-8">
               <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="text-sm font-medium text-white mb-3">Opción 1: Reducir las horas</p>
+                <p className="text-sm font-medium text-white mb-3">Ajustar horas de la tarea</p>
                 <div className="flex items-center gap-3">
                   <input 
                     type="number"
@@ -818,26 +818,6 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                   />
                   <span className="text-sm text-slate-400">horas (Recomendado: {Math.max(0.5, pendingAction?.data?.estimated_hours - conflictData.exceeds_by)}h)</span>
                 </div>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="text-sm font-medium text-white mb-3">Opción 2: Mover a otra fecha</p>
-                <input 
-                  type="date"
-                  value={pendingAction?.data?.target_date || pendingAction?.data?.time || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPendingAction(prev => ({
-                      ...prev,
-                      data: {
-                        ...prev.data,
-                        target_date: val,
-                        time: val
-                      }
-                    }));
-                  }}
-                  className="w-full bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white [color-scheme:dark]" 
-                />
               </div>
             </div>
 
