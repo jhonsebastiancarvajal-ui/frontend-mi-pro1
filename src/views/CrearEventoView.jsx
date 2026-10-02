@@ -420,6 +420,40 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
               Con esta nueva tarea sumarías <strong className="text-amber-400">{conflictData.planned_hours}h planificadas</strong> para el {formData.date}, pero tu límite es de <strong className="text-white">{conflictData.limit_hours}h</strong>. Tienes un exceso de <span className="text-red-400 font-medium">{conflictData.exceeds_by}h</span>.
             </p>
 
+            <div className="space-y-4 mb-8">
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                <p className="text-sm font-medium text-white mb-3">Opción 1: Reducir las horas de la tarea</p>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max={pendingSubtask?.estimated_hours - conflictData.exceeds_by > 0.5 ? pendingSubtask?.estimated_hours - conflictData.exceeds_by : 0.5}
+                    value={pendingSubtask?.estimated_hours || ''}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0.5;
+                      setPendingSubtask(prev => ({ ...prev, estimated_hours: val }));
+                    }}
+                    className="w-24 bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white" 
+                  />
+                  <span className="text-sm text-slate-400">horas (Recomendado: {Math.max(0.5, pendingSubtask?.estimated_hours - conflictData.exceeds_by)}h)</span>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                <p className="text-sm font-medium text-white mb-3">Opción 2: Mover TODO el evento a otra fecha</p>
+                <input 
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, date: val }));
+                  }}
+                  className="w-full bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white [color-scheme:dark]" 
+                />
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-6 border-t border-white/10">
               <Button 
                 type="button"
@@ -427,9 +461,9 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
                   setConflictData(null);
                   setPendingSubtask(null);
                 }} 
-                className="flex-[1.5] bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-11"
+                className="flex-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-11"
               >
-                No añadir
+                Cancelar
               </Button>
               <Button 
                 type="button"
@@ -438,9 +472,9 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
                   executeAddSubtask(pendingSubtask);
                   setPendingSubtask(null);
                 }} 
-                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] rounded-xl h-11"
+                className="flex-[1.5] bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] rounded-xl h-11"
               >
-                Añadir de todos modos
+                Añadir Tarea
               </Button>
             </div>
           </div>
