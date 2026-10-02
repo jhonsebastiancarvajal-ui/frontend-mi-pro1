@@ -137,6 +137,14 @@ export function EventItem({ evento }) {
                       <span className="font-medium">{details.invitados} inv.</span>
                     </div>
                   )}
+                  {evento.subtasks && evento.subtasks.length > 0 && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-300 bg-emerald-500/10 rounded-md px-2 py-1 border border-emerald-500/20">
+                      <Clock className="w-3 h-3 text-emerald-400" />
+                      <span className="font-medium text-emerald-300">
+                        Total a invertir: {evento.subtasks.reduce((acc, st) => acc + parseFloat(st.estimated_hours || 0), 0)}h
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -133,17 +133,14 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
   const executeAddTask = async (dataToSave) => {
     try {
-      const priorityTag = `[Prioridad ${dataToSave.priority}] `;
-      const finalDescription = dataToSave.priority ? priorityTag + dataToSave.description : dataToSave.description;
-      
       await crearNuevaSubtarea(id, {
         ...dataToSave,
-        description: finalDescription,
+        description: dataToSave.description,
         activity_id: id,
         course: "General",
       });
       setIsAddingTask(false);
-      setNewTaskData({ title: '', priority: 'Media', estimated_hours: 1, description: '' });
+      setNewTaskData({ title: '', estimated_hours: 1, description: '' });
       loadEvent();
     } catch (error) {
       alert('Error al crear tarea');
@@ -588,35 +585,16 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                   placeholder="Detalles sobre cómo completar la tarea..."
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-slate-300 text-sm font-medium mb-2 block">Nivel de Prioridad</label>
-                  <div className="relative">
-                    <select 
-                      value={newTaskData.priority} 
-                      onChange={e => setNewTaskData({...newTaskData, priority: e.target.value})} 
-                      className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none appearance-none"
-                    >
-                      <option value="Baja" className="bg-slate-900">Baja (🟢)</option>
-                      <option value="Media" className="bg-slate-900">Media (🟡)</option>
-                      <option value="Alta" className="bg-slate-900">Alta (🔴)</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
-                      ▼
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-slate-300 text-sm font-medium mb-2 block">Horas Estimadas</label>
-                  <input 
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    value={newTaskData.estimated_hours} 
-                    onChange={e => setNewTaskData({...newTaskData, estimated_hours: parseFloat(e.target.value) || 0.5})} 
-                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none" 
-                  />
-                </div>
+              <div>
+                <label className="text-slate-300 text-sm font-medium mb-2 block">Horas Estimadas</label>
+                <input 
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  value={newTaskData.estimated_hours} 
+                  onChange={e => setNewTaskData({...newTaskData, estimated_hours: parseFloat(e.target.value) || 0.5})} 
+                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none" 
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-8 pt-6 border-t border-white/10">

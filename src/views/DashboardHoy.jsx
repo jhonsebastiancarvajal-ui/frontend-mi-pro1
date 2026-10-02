@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { EventItem } from '../components/dashboard/EventItem';
-import { fetchTareasHoy, actualizarEstadoSubtarea, fetchAllEventos } from '../services/api';
+import { fetchTareasHoy, actualizarEstadoSubtarea, fetchAllEventos, getCapacity } from '../services/api';
 import { cn } from '../lib/utils';
 
 export function DashboardHoy() {
@@ -18,15 +18,19 @@ export function DashboardHoy() {
   const [isPopupRendered, setIsPopupRendered] = useState(false);
   const [showAllProximas, setShowAllProximas] = useState(false);
   const [showAllParaHoy, setShowAllParaHoy] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState(6);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [data, eventosData] = await Promise.all([
+      const [data, eventosData, capacityData] = await Promise.all([
         fetchTareasHoy(),
-        fetchAllEventos()
+        fetchAllEventos(),
+        getCapacity()
       ]);
+      
+      setDailyLimit(capacityData.daily_limit_hours || 6);
       
       const mapTask = (task, uiStatus) => ({
         id: task.id,
@@ -36,7 +40,8 @@ export function DashboardHoy() {
         time: task.target_date,
         status: task.status === 'DONE' ? 'completada' : uiStatus,
         backendStatus: task.status,
-        activity_id: task.activity_id
+        activity_id: task.activity_id,
+        estimated_hours: parseFloat(task.estimated_hours) || 0
       });
 
       setTasks({
@@ -179,6 +184,20 @@ export function DashboardHoy() {
             <div>
               <h3 className="text-primary font-semibold text-sm">Prioridad Recomendada</h3>
               <p className="text-primary/80 text-sm mt-1">{rule}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ALERTA DE SOBRECARGA */}
+        {!loading && !error && tasks.para_hoy.reduce((acc, t) => acc + t.estimated_hours, 0) > dailyLimit && (
+          <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 backdrop-blur-md mt-4">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="text-red-400 font-semibold text-sm">¡Sobrecarga Diaria Detectada!</h3>
+              <p className="text-red-300/80 text-sm mt-1">
+                Tienes <strong>{tasks.para_hoy.reduce((acc, t) => acc + t.estimated_hours, 0)}h</strong> planificadas para hoy, superando tu límite configurado de <strong>{dailyLimit}h</strong>. 
+                Entra a los eventos para ajustar el tiempo o re-planificar.
+              </p>
             </div>
           </div>
         )}
