@@ -3,12 +3,14 @@ import { PlusCircle, Calendar as CalendarIcon, ArrowRight, AlertCircle, RefreshC
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
-import { fetchTareasHoy, actualizarEstadoSubtarea } from '../services/api';
+import { EventItem } from '../components/dashboard/EventItem';
+import { fetchTareasHoy, actualizarEstadoSubtarea, fetchAllEventos } from '../services/api';
 import { cn } from '../lib/utils';
 
 export function DashboardHoy() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState({ vencidas: [], para_hoy: [], proximas: [] });
+  const [eventos, setEventos] = useState([]);
   const [rule, setRule] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,7 +23,10 @@ export function DashboardHoy() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchTareasHoy();
+      const [data, eventosData] = await Promise.all([
+        fetchTareasHoy(),
+        fetchAllEventos()
+      ]);
       
       const mapTask = (task, uiStatus) => ({
         id: task.id,
@@ -40,9 +45,17 @@ export function DashboardHoy() {
         proximas: (data.proximas || []).map(t => mapTask(t, 'proxima'))
       });
       setRule(data.rule || '');
+
+      const evts = eventosData?.results || (Array.isArray(eventosData) ? eventosData : []);
+      const todayDate = new Date();
+      const todayStr = todayDate.getFullYear() + '-' + String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + String(todayDate.getDate()).padStart(2, '0');
+      
+      const eventosHoy = evts.filter(e => e.due_date === todayStr);
+      setEventos(eventosHoy);
+
     } catch (err) {
       console.error('Error cargando datos:', err);
-      setError('No se pudieron cargar las tareas de hoy.');
+      setError('No se pudieron cargar las tareas y eventos de hoy.');
     } finally {
       setLoading(false);
     }
@@ -129,7 +142,7 @@ export function DashboardHoy() {
     }
   };
 
-  const hasAnyMainTask = tasks.para_hoy.length > 0 || tasks.proximas.length > 0;
+  const hasAnyMainTask = tasks.para_hoy.length > 0 || tasks.proximas.length > 0 || eventos.length > 0;
 
   return (
     <div className="pb-12">
@@ -213,6 +226,23 @@ export function DashboardHoy() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(showAllParaHoy ? tasks.para_hoy : tasks.para_hoy.slice(0, 2)).map(task => (
                     <TaskItem key={task.id} task={task} onToggleComplete={handleToggleTask} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Eventos para hoy */}
+            {eventos.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-outfit font-semibold text-slate-100 flex items-center gap-2">
+                     <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.4)]" />
+                    Eventos de hoy
+                  </h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {eventos.map(evento => (
+                    <EventItem key={evento.id} evento={evento} />
                   ))}
                 </div>
               </section>
