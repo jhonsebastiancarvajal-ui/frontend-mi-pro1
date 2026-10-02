@@ -773,33 +773,37 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
             </p>
 
             <div className="space-y-4 mb-8">
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="text-sm font-medium text-white mb-3">Opción 1: Reducir las horas de la tarea</p>
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max={pendingAction?.data?.estimated_hours - conflictData.exceeds_by > 0.5 ? pendingAction?.data?.estimated_hours - conflictData.exceeds_by : 0.5}
-                    value={pendingAction?.data?.estimated_hours || ''}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0.5;
-                      setPendingAction(prev => ({
-                        ...prev,
-                        data: {
-                          ...prev.data,
-                          estimated_hours: val
-                        }
-                      }));
-                    }}
-                    className="w-24 bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white" 
-                  />
-                  <span className="text-sm text-slate-400">horas (Recomendado: {Math.max(0.5, pendingAction?.data?.estimated_hours - conflictData.exceeds_by)}h)</span>
+              {(pendingAction?.data?.estimated_hours - conflictData.exceeds_by >= 0.5) && (
+                <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
+                  <p className="text-sm font-medium text-white mb-3">Opción 1: Reducir las horas de la tarea</p>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max={pendingAction?.data?.estimated_hours - conflictData.exceeds_by}
+                      value={pendingAction?.data?.estimated_hours || ''}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0.5;
+                        setPendingAction(prev => ({
+                          ...prev,
+                          data: {
+                            ...prev.data,
+                            estimated_hours: val
+                          }
+                        }));
+                      }}
+                      className="w-24 bg-black/40 border border-white/10 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg px-3 py-2 text-white" 
+                    />
+                    <span className="text-sm text-slate-400">horas (Recomendado: {Math.max(0.5, pendingAction?.data?.estimated_hours - conflictData.exceeds_by)}h)</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="text-sm font-medium text-white mb-3">Opción 2: Mover TODO el evento a otra fecha</p>
+                <p className="text-sm font-medium text-white mb-3">
+                  {(pendingAction?.data?.estimated_hours - conflictData.exceeds_by >= 0.5) ? "Opción 2: Mover TODO el evento a otra fecha" : "Mover TODO el evento a otra fecha"}
+                </p>
                 <input 
                   type="date"
                   value={pendingAction?.data?.target_date || eventDetails?.due_date || ''}
