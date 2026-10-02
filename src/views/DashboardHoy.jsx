@@ -14,6 +14,7 @@ export function DashboardHoy() {
   const [error, setError] = useState(null);
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isPopupRendered, setIsPopupRendered] = useState(false);
+  const [showAllProximas, setShowAllProximas] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -213,12 +214,19 @@ export function DashboardHoy() {
                   <h2 className="text-lg font-outfit font-semibold text-slate-300">
                     Próximas gestiones
                   </h2>
-                  <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
-                    Ver todas <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
+                  {tasks.proximas.length > 3 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-slate-400 hover:text-white"
+                      onClick={() => setShowAllProximas(!showAllProximas)}
+                    >
+                      {showAllProximas ? 'Ver menos' : 'Ver todas'} <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  )}
                 </div>
                 <div className="flex flex-col gap-3">
-                  {tasks.proximas.map(task => (
+                  {(showAllProximas ? tasks.proximas : tasks.proximas.slice(0, 3)).map(task => (
                     <TaskItem key={task.id} task={task} onToggleComplete={handleToggleTask} />
                   ))}
                 </div>
