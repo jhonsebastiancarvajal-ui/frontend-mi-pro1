@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, PlusCircle, Trash2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
-import { crearNuevoEvento, crearNuevaSubtarea } from '../services/api';
+import { crearNuevoEvento, crearNuevaSubtarea, checkOverload } from '../services/api';
 
 export function CrearEventoView() {
   const navigate = useNavigate();
@@ -23,6 +23,8 @@ export function CrearEventoView() {
   const [newSubtask, setNewSubtask] = useState({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [conflictData, setConflictData] = useState(null);
+  const [pendingSubtask, setPendingSubtask] = useState(null);
 
   const validateForm = () => {
     const newErrors = {};
@@ -90,7 +92,7 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
     }
   };
 
-  const handleAddSubtask = () => {
+  const handleAddSubtask = async () => {
     if (!newSubtask.title.trim() || !newSubtask.estimated_hours) {
       alert("Por favor, ingresa el título y las horas estimadas para poder añadir la tarea.");
       return;
@@ -99,7 +101,28 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
       alert("Las horas estimadas no pueden superar 999.99");
       return;
     }
-    setSubtasks([...subtasks, { id: Date.now(), ...newSubtask }]);
+
+    if (formData.date) {
+      try {
+        const totalPendingHours = subtasks.reduce((sum, t) => sum + parseFloat(t.estimated_hours), 0) + parseFloat(newSubtask.estimated_hours);
+        const overloadCheck = await checkOverload(formData.date, totalPendingHours);
+        if (overloadCheck.conflict) {
+          setConflictData(overloadCheck);
+          setPendingSubtask(newSubtask);
+          return;
+        }
+      } catch (error) {
+        console.error("Error validando sobrecarga:", error);
+      }
+    } else {
+      alert("Aviso: Como no has seleccionado una fecha general arriba, no podemos validar aún si esta tarea excederá tu límite de horas.");
+    }
+
+    executeAddSubtask(newSubtask);
+  };
+
+  const executeAddSubtask = (taskToAdd) => {
+    setSubtasks([...subtasks, { id: Date.now(), ...taskToAdd }]);
     setNewSubtask({ title: '', description: '', estimated_hours: '', status: 'PENDING' });
   };
 
@@ -380,6 +403,47 @@ ${formData.attendees ? `\nInvitados: ${formData.attendees}` : ''}`;
         <div className="fixed bottom-6 right-6 bg-emerald-500/90 backdrop-blur-md text-white px-6 py-3 rounded-2xl shadow-[0_10px_40px_rgba(16,185,129,0.3)] flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300 z-50 border border-emerald-400/20">
           <CheckCircle2 className="w-5 h-5 text-white" />
           <span className="font-medium font-outfit">¡Evento guardado con éxito!</span>
+        </div>
+      )}
+      {/* Conflict Modal */}
+      {conflictData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-slate-900 border border-amber-500/30 rounded-3xl p-8 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30 shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+              </div>
+              <h3 className="text-xl font-outfit font-bold text-white">Sobrecarga Detectada</h3>
+            </div>
+            
+            <p className="text-slate-300 mb-6 leading-relaxed">
+              Con esta nueva tarea sumarías <strong className="text-amber-400">{conflictData.planned_hours}h planificadas</strong> para el {formData.date}, pero tu límite es de <strong className="text-white">{conflictData.limit_hours}h</strong>. Tienes un exceso de <span className="text-red-400 font-medium">{conflictData.exceeds_by}h</span>.
+            </p>
+
+            <div className="flex gap-3 pt-6 border-t border-white/10">
+              <Button 
+                type="button"
+                onClick={() => {
+                  setConflictData(null);
+                  setPendingSubtask(null);
+                }} 
+                className="flex-[1.5] bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl h-11"
+              >
+                No añadir
+              </Button>
+              <Button 
+                type="button"
+                onClick={() => {
+                  setConflictData(null);
+                  executeAddSubtask(pendingSubtask);
+                  setPendingSubtask(null);
+                }} 
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)] rounded-xl h-11"
+              >
+                Añadir de todos modos
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
