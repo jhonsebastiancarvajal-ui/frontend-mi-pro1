@@ -28,7 +28,7 @@ export function DashboardEvento() {
   const [editEventData, setEditEventData] = useState({});
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
-  const [newTaskData, setNewTaskData] = useState({ title: '', target_date: '', estimated_hours: 1, description: '' });
+  const [newTaskData, setNewTaskData] = useState({ title: '', priority: 'Media', estimated_hours: 1, description: '' });
   
   const [selectedTask, setSelectedTask] = useState(null);
   const [isEditingTask, setIsEditingTask] = useState(false);
@@ -113,18 +113,19 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
   };
 
   const handleAddTask = async () => {
-    if (!newTaskData.title || !newTaskData.target_date || !newTaskData.estimated_hours) {
-      alert("Por favor, llena todos los campos obligatorios (Título, Fecha Objetivo, Horas Estimadas).");
+    const finalTargetDate = eventDetails.due_date;
+    if (!newTaskData.title || !newTaskData.estimated_hours) {
+      alert("Por favor, llena todos los campos obligatorios (Título, Horas Estimadas).");
       return;
     }
     try {
-      const overloadCheck = await checkOverload(newTaskData.target_date, newTaskData.estimated_hours);
+      const overloadCheck = await checkOverload(finalTargetDate, newTaskData.estimated_hours);
       if (overloadCheck.conflict) {
         setConflictData(overloadCheck);
-        setPendingAction({ type: 'ADD', data: newTaskData });
+        setPendingAction({ type: 'ADD', data: { ...newTaskData, target_date: finalTargetDate } });
         return;
       }
-      await executeAddTask(newTaskData);
+      await executeAddTask({ ...newTaskData, target_date: finalTargetDate });
     } catch (error) {
       alert('Error al verificar tarea');
     }
@@ -132,13 +133,17 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
   const executeAddTask = async (dataToSave) => {
     try {
+      const priorityTag = `[Prioridad ${dataToSave.priority}] `;
+      const finalDescription = dataToSave.priority ? priorityTag + dataToSave.description : dataToSave.description;
+      
       await crearNuevaSubtarea(id, {
         ...dataToSave,
+        description: finalDescription,
         activity_id: id,
         course: "General",
       });
       setIsAddingTask(false);
-      setNewTaskData({ title: '', target_date: '', estimated_hours: 1, description: '' });
+      setNewTaskData({ title: '', priority: 'Media', estimated_hours: 1, description: '' });
       loadEvent();
     } catch (error) {
       alert('Error al crear tarea');
@@ -585,13 +590,21 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-300 text-sm font-medium mb-2 block">Fecha Objetivo</label>
-                  <input 
-                    type="date" 
-                    value={newTaskData.target_date} 
-                    onChange={e => setNewTaskData({...newTaskData, target_date: e.target.value})} 
-                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none [color-scheme:dark]" 
-                  />
+                  <label className="text-slate-300 text-sm font-medium mb-2 block">Nivel de Prioridad</label>
+                  <div className="relative">
+                    <select 
+                      value={newTaskData.priority} 
+                      onChange={e => setNewTaskData({...newTaskData, priority: e.target.value})} 
+                      className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none appearance-none"
+                    >
+                      <option value="Baja" className="bg-slate-900">Baja (🟢)</option>
+                      <option value="Media" className="bg-slate-900">Media (🟡)</option>
+                      <option value="Alta" className="bg-slate-900">Alta (🔴)</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                      ▼
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="text-slate-300 text-sm font-medium mb-2 block">Horas Estimadas</label>
