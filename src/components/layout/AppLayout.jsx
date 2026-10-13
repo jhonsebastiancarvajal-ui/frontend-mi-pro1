@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2, TrendingUp, LogOut } from 'lucide-react';
-import { clearApiCache, getCapacity, updateCapacity } from '../../services/api';
+import { clearApiCache, getCapacity, updateCapacity, fetchUserProfile } from '../../services/api';
 import { ErrorBoundary } from './ErrorBoundary';
 
 export function AppLayout() {
@@ -11,11 +11,24 @@ export function AppLayout() {
   const [isSaving, setIsSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
+  const [userName, setUserName] = useState(localStorage.getItem('user_name') || '');
+
   useEffect(() => {
     if (isSettingsOpen) {
       getCapacity().then(data => setDailyLimit(data.daily_limit_hours || 6)).catch(console.error);
     }
   }, [isSettingsOpen]);
+
+  // Consultar perfil de la cuenta registrada para mostrar el nombre real
+  useEffect(() => {
+    if (localStorage.getItem('token')) {
+      fetchUserProfile().then(data => {
+        if (data && data.first_name) {
+          setUserName(data.first_name);
+        }
+      }).catch(console.error);
+    }
+  }, []);
 
   const handleSaveSettings = async () => {
     try {
@@ -47,7 +60,7 @@ export function AppLayout() {
     { name: 'Completados', path: '/completados', icon: Award },
   ];
 
-  const rawUserName = localStorage.getItem('user_name') || '';
+  const rawUserName = userName || localStorage.getItem('user_name') || '';
   const shortUserName = rawUserName ? rawUserName.split(' ')[0] : 'Usuario';
 
   return (

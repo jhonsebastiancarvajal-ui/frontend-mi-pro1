@@ -329,3 +329,22 @@ export const updateCapacity = async (daily_limit_hours) => {
     throw error;
   }
 };
+
+export const fetchUserProfile = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me/`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data.first_name) {
+      localStorage.setItem('user_name', data.first_name);
+    }
+    return data;
+  } catch (error) {
+    console.error("Error en fetchUserProfile:", error);
+    return null;
+  }
+};
+
