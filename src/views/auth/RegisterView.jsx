@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
 import { Button } from '../../components/ui/button';
 import { LayoutDashboard } from 'lucide-react';
 
@@ -46,35 +45,6 @@ export function RegisterView() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-      const response = await fetch(`${apiUrl}/auth/google/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: credentialResponse.credential }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        setError(data.error || 'Error al iniciar sesión con Google');
-        return;
-      }
-
-      localStorage.setItem('token', data.access);
-      if (data.user) {
-        localStorage.setItem('user_name', data.user.first_name || '');
-        if (data.user.picture) {
-          localStorage.setItem('user_picture', data.user.picture);
-        }
-      }
-      navigate('/hoy');
-    } catch (err) {
-      setError('Error de conexión con el servidor');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
@@ -96,7 +66,7 @@ export function RegisterView() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Nombre completo</label>
               <input 
@@ -136,23 +106,6 @@ export function RegisterView() {
             </Button>
           </form>
 
-          <div className="relative flex items-center py-4">
-            <div className="flex-grow border-t border-white/10"></div>
-            <span className="flex-shrink-0 mx-4 text-slate-500 text-sm">o también</span>
-            <div className="flex-grow border-t border-white/10"></div>
-          </div>
-
-          <div className="flex justify-center w-full mt-2">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError('El registro con Google falló.')}
-              theme="filled_black"
-              size="large"
-              shape="pill"
-              text="signup_with"
-            />
-          </div>
-          
           <div className="mt-8 text-center text-sm text-slate-400">
             ¿Ya tienes una cuenta?{' '}
             <Link to="/login" className="text-white hover:text-slate-200 transition-colors font-medium">
