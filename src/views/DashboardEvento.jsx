@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle2, ChevronLeft, C
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
+import { cn } from '../lib/utils';
 import { 
   fetchEventoPorId, 
   eliminarEvento, 

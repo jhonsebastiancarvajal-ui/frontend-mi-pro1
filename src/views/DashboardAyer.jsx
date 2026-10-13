@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, AlertCircle, CalendarIcon, ChevronRight, Clock } from 'lucide-react';
+import { History, AlertCircle, CalendarIcon, ChevronRight, Clock, StickyNote, CheckCircle2 } from 'lucide-react';
 import { fetchTareasHoy, actualizarEstadoSubtarea } from '../services/api';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
@@ -190,20 +190,43 @@ export function DashboardAyer() {
                           <div className="mt-6 space-y-3 bg-black/20 p-5 rounded-2xl border border-white/5">
                             <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Subtareas Pendientes</h3>
                             {evento.tasks.map(task => (
-                              <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
-                                <div 
-                                  onClick={() => handleToggleTask(task.id)}
-                                  className="w-5 h-5 rounded-full border border-red-500/50 mt-0.5 cursor-pointer hover:bg-red-500/20 flex-shrink-0 transition-colors"
-                                />
-                                <div className="flex-1">
-                                  <h4 className="text-white font-medium">{task.title}</h4>
-                                  {task.description && (
-                                    <p className="text-sm text-slate-500 mt-1 line-clamp-1">{task.description}</p>
-                                  )}
+                              <div key={task.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5 bg-white/[0.02]">
+                                <div className="flex items-start gap-3 flex-1">
+                                  <div 
+                                    onClick={() => handleToggleTask(task.id)}
+                                    title="Marcar como ejecutada"
+                                    className="w-5 h-5 rounded-full border border-red-500/50 mt-0.5 cursor-pointer hover:bg-red-500/20 flex-shrink-0 transition-colors flex items-center justify-center text-transparent hover:text-red-400"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="text-white font-medium text-sm">{task.title}</h4>
+                                    {task.description && (
+                                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
+                                    )}
+                                    {task.postpone_note && (
+                                      <div className="mt-1.5 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-amber-300/90 flex items-start gap-1.5">
+                                        <StickyNote className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                        <span><strong>Nota:</strong> {task.postpone_note}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-xs text-red-400/80 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  {task.time}
+
+                                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPostponeModal(task)}
+                                    className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/20 transition-all hover:scale-105"
+                                    title="Posponer gestión con nota explicativa"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    Posponer
+                                  </button>
+                                  <div className="flex items-center gap-1 text-xs text-red-400/80 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/20">
+                                    <Clock className="w-3 h-3" />
+                                    {task.time}
+                                  </div>
                                 </div>
                               </div>
                             ))}

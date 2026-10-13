@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2, TrendingUp, LogOut } from 'lucide-react';
 import { clearApiCache, getCapacity, updateCapacity } from '../../services/api';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export function AppLayout() {
   const navigate = useNavigate();
@@ -156,7 +157,9 @@ export function AppLayout() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {/* Settings Modal (Sprint 3 - C2) */}
