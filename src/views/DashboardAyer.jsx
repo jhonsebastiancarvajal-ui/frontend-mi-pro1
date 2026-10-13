@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { History, AlertCircle, CalendarIcon, ChevronRight, Clock } from 'lucide-react';
 import { fetchTareasHoy, actualizarEstadoSubtarea } from '../services/api';
 import { TaskItem } from '../components/dashboard/TaskItem';
+import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Link } from 'react-router-dom';
@@ -11,29 +12,33 @@ export function DashboardAyer() {
   const [vencidas, setVencidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('tareas'); // 'tareas' | 'eventos'
+  const [postponeModalTask, setPostponeModalTask] = useState(null);
+  const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const data = await fetchTareasHoy();
+      const pendientesVencidas = (data.vencidas || []).filter(t => t.status !== 'DONE').map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description || '',
+        event: task.activity_title,
+        time: task.target_date,
+        status: task.status === 'POSTPONED' ? 'pospuesta' : 'vencida',
+        backendStatus: task.status,
+        postpone_note: task.postpone_note || '',
+        done_at: task.done_at,
+        activity_id: task.activity_id
+      }));
+      setVencidas(pendientesVencidas);
+    } catch (error) {
+      console.error('Error cargando tareas vencidas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchTareasHoy();
-        // Solo tareas que pasaron la fecha y NO están completadas
-        const pendientesVencidas = (data.vencidas || []).filter(t => t.status !== 'DONE').map(task => ({
-          id: task.id,
-          title: task.title,
-          description: task.description || '',
-          event: task.activity_title,
-          time: task.target_date,
-          status: 'vencida',
-          backendStatus: task.status,
-          activity_id: task.activity_id
-        }));
-        setVencidas(pendientesVencidas);
-      } catch (error) {
-        console.error('Error cargando tareas vencidas:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, []);
 
@@ -59,6 +64,20 @@ export function DashboardAyer() {
       }
     } catch (error) {
       alert('Error al actualizar estado');
+    }
+  };
+
+  const handleOpenPostponeModal = (task) => {
+    setPostponeModalTask(task);
+    setIsPostponeModalOpen(true);
+  };
+
+  const handleConfirmPostpone = async (taskId, note) => {
+    try {
+      await actualizarEstadoSubtarea(taskId, 'POSTPONED', note);
+      loadData();
+    } catch (error) {
+      alert('Error al posponer tarea');
     }
   };
 
@@ -134,7 +153,8 @@ export function DashboardAyer() {
                   <TaskItem 
                     key={task.id} 
                     task={task} 
-                    onToggle={() => handleToggleTask(task.id)} 
+                    onToggleComplete={handleToggleTask} 
+                    onPostpone={handleOpenPostponeModal}
                   />
                 ))}
               </div>
@@ -198,6 +218,13 @@ export function DashboardAyer() {
           </section>
         )}
       </main>
+      {/* Modal para posponer tareas vencidas con nota (C1) */}
+      <PostponeTaskModal
+        isOpen={isPostponeModalOpen}
+        onClose={() => setIsPostponeModalOpen(false)}
+        task={postponeModalTask}
+        onConfirm={handleConfirmPostpone}
+      />
     </div>
   );
 }

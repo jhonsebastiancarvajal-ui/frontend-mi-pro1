@@ -67,22 +67,55 @@ export const fetchEventoPorId = async (eventoId) => {
 };
 
 /**
- * Marcar una subtarea como completada o pendiente.
+ * Marcar una subtarea como Hecha (DONE), Pendiente (PENDING) o Pospuesta (POSTPONED) con nota explicativa.
  */
-export const actualizarEstadoSubtarea = async (subtareaId, nuevoEstado) => {
+export const actualizarEstadoSubtarea = async (subtareaId, nuevoEstado, postponeNote = undefined) => {
   try {
+    const payload = { status: nuevoEstado };
+    if (postponeNote !== undefined && postponeNote !== null) {
+      payload.postpone_note = postponeNote;
+    }
+
     const response = await fetch(`${API_BASE_URL}/subtasks/${subtareaId}/`, {
-      method: 'PATCH', // Usually PATCH is better for partial update, or PUT if expected by backend
+      method: 'PATCH',
       headers: getHeaders(),
-      body: JSON.stringify({ status: nuevoEstado })
+      body: JSON.stringify(payload)
     });
 
-    if (!response.ok) throw new Error('Error al actualizar el estado de la subtarea');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const msg = errorData.detail || errorData.error || 'Error al actualizar el estado de la subtarea';
+      throw new Error(msg);
+    }
 
     clearApiCache(); // Invalida caché al mutar datos
     return await response.json();
   } catch (error) {
     console.error("Error en actualizarEstadoSubtarea:", error);
+    throw error;
+  }
+};
+
+/**
+ * Consulta de progreso verificable por evento (C2).
+ */
+export const fetchProgresoEvento = async (eventoId) => {
+  const cacheKey = `progreso_${eventoId}`;
+  if (apiCache.has(cacheKey)) return apiCache.get(cacheKey);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/activities/${eventoId}/progress/`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) throw new Error('Error al obtener el progreso del evento');
+
+    const data = await response.json();
+    apiCache.set(cacheKey, data);
+    return data;
+  } catch (error) {
+    console.error("Error en fetchProgresoEvento:", error);
     throw error;
   }
 };

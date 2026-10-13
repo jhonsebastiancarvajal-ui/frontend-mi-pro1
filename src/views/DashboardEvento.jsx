@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, Edit, Trash2, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, Edit, Trash2, Plus, StickyNote } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
+import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
 import { 
   fetchEventoPorId, 
   eliminarEvento, 
@@ -34,6 +35,10 @@ export function DashboardEvento() {
   const [isEditingTask, setIsEditingTask] = useState(false);
   const [editTaskData, setEditTaskData] = useState({});
 
+  // Estado para posponer con nota (C1)
+  const [postponeModalTask, setPostponeModalTask] = useState(null);
+  const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
+
   const [conflictData, setConflictData] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [showToast, setShowToast] = useState(false);
@@ -50,6 +55,7 @@ export function DashboardEvento() {
         if (st.status === 'PENDING') stStatus = 'urgente';
         if (st.status === 'OVERDUE') stStatus = 'vencida';
         if (st.status === 'DONE') stStatus = 'completada';
+        if (st.status === 'POSTPONED') stStatus = 'pospuesta';
         
         return {
           id: st.id,
@@ -58,6 +64,9 @@ export function DashboardEvento() {
           event: data.title,
           time: st.target_date,
           status: stStatus,
+          backendStatus: st.status,
+          postpone_note: st.postpone_note || '',
+          done_at: st.done_at,
           estimated_hours: st.estimated_hours,
           course: st.course
         };
@@ -195,7 +204,7 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
   const handleToggleTask = async (taskId) => {
     const task = tasks.find(t => t.id === taskId);
-    const newStatusBackend = task.status === 'completada' ? 'PENDING' : 'DONE';
+    const newStatusBackend = (task.status === 'completada' || task.backendStatus === 'DONE') ? 'PENDING' : 'DONE';
     try {
       await actualizarEstadoSubtarea(taskId, newStatusBackend);
       loadEvent();
@@ -207,11 +216,30 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
     }
   };
 
+  const handleOpenPostponeModal = (task) => {
+    setPostponeModalTask(task);
+    setIsPostponeModalOpen(true);
+  };
+
+  const handleConfirmPostpone = async (taskId, note) => {
+    try {
+      await actualizarEstadoSubtarea(taskId, 'POSTPONED', note);
+      loadEvent();
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask(prev => prev ? { ...prev, status: 'pospuesta', backendStatus: 'POSTPONED', postpone_note: note } : null);
+      }
+    } catch (error) {
+      alert('Error al posponer la tarea');
+      throw error;
+    }
+  };
+
   if (loading) return <div className="text-center p-12 text-white">Cargando...</div>;
   if (!eventDetails) return null;
 
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'completada').length;
+  const completedTasks = tasks.filter(t => t.status === 'completada' || t.backendStatus === 'DONE').length;
+  const postponedTasks = tasks.filter(t => t.status === 'pospuesta' || t.backendStatus === 'POSTPONED').length;
   const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
   const totalPages = Math.ceil(totalTasks / tasksPerPage);
@@ -333,6 +361,7 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                     key={task.id} 
                     task={task} 
                     onToggleComplete={handleToggleTask}
+                    onPostpone={handleOpenPostponeModal}
                     onViewMore={(t) => {
                       setSelectedTask(t);
                       setEditTaskData(t);
@@ -395,14 +424,34 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
             </div>
             
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-              <h3 className="text-sm font-medium text-slate-300 mb-4">Progreso</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-slate-300">Progreso de Preparación</h3>
+                <span className={cn(
+                  "font-outfit font-bold text-sm",
+                  progressPercentage === 100 ? "text-emerald-400" : "text-primary"
+                )}>
+                  {progressPercentage}%
+                </span>
+              </div>
               <div className="w-full">
-                <div className="flex justify-between text-xs mb-2">
-                  <span className="text-slate-400">{completedTasks} de {totalTasks} tareas</span>
-                  <span className="text-emerald-400 font-medium">{progressPercentage}%</span>
+                <div className="flex justify-between items-center text-xs mb-2">
+                  <span className="text-slate-400 font-medium">{completedTasks} de {totalTasks} gestiones ejecutadas</span>
+                  {postponedTasks > 0 && (
+                    <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 text-xs">
+                      {postponedTasks} pospuesta{postponedTasks > 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
-                <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 transition-all duration-500 ease-out rounded-full" style={{ width: `${progressPercentage}%` }} />
+                <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/5">
+                  <div 
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500 ease-out",
+                      progressPercentage === 100 
+                        ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" 
+                        : "bg-primary shadow-[0_0_12px_rgba(var(--primary),0.5)]"
+                    )} 
+                    style={{ width: `${progressPercentage}%` }} 
+                  />
                 </div>
               </div>
             </div>
@@ -702,19 +751,37 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                     </div>
                   </div>
                   
-                  <div className="flex gap-3 pt-6 border-t border-white/10">
-                    <Button onClick={() => setIsEditingTask(true)} className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl h-11">
-                      <Edit className="w-4 h-4 mr-2" /> Editar
+                  {selectedTask.postpone_note && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-300 flex items-start gap-2">
+                      <StickyNote className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-semibold text-amber-400 block mb-0.5">Nota explicativa de posposición:</span>
+                        <span>{selectedTask.postpone_note}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2.5 pt-6 border-t border-white/10">
+                    <Button onClick={() => setIsEditingTask(true)} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl h-11 px-3.5">
+                      <Edit className="w-4 h-4 mr-1.5" /> Editar
                     </Button>
                     <Button 
                       onClick={() => handleToggleTask(selectedTask.id)} 
-                      className={`flex-[1.5] text-white rounded-xl h-11 shadow-lg ${selectedTask.status === 'completada' ? 'bg-slate-600 hover:bg-slate-700' : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.3)]'}`}
+                      className={`flex-1 text-white rounded-xl h-11 shadow-lg ${selectedTask.status === 'completada' ? 'bg-slate-600 hover:bg-slate-700' : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.3)]'}`}
                     >
-                      {selectedTask.status === 'completada' ? 'Marcar como Pendiente' : 'Completar Tarea'}
+                      {selectedTask.status === 'completada' ? 'Marcar como Pendiente' : 'Ejecutar Tarea'}
                     </Button>
+                    {selectedTask.status !== 'completada' && (
+                      <Button 
+                        onClick={() => handleOpenPostponeModal(selectedTask)}
+                        className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl h-11 px-3.5"
+                      >
+                        <Clock className="w-4 h-4 mr-1.5" /> Posponer
+                      </Button>
+                    )}
                     <Button 
                       onClick={() => setIsDeletingTask(true)} 
-                      className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 rounded-xl h-11 transition-all hover:scale-105"
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-3 rounded-xl h-11 transition-all"
                       title="Eliminar tarea"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -863,6 +930,14 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
           </div>
         </div>
       )}
+
+      {/* Modal para posponer tareas con nota explicativa (C1) */}
+      <PostponeTaskModal
+        isOpen={isPostponeModalOpen}
+        onClose={() => setIsPostponeModalOpen(false)}
+        task={postponeModalTask}
+        onConfirm={handleConfirmPostpone}
+      />
     </div>
   );
 }

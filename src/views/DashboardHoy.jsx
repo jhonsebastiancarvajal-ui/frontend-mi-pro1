@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Calendar as CalendarIcon, ArrowRight, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, ArrowRight, AlertCircle, RefreshCw, X, CheckCircle2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { EventItem } from '../components/dashboard/EventItem';
+import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
 import { fetchTareasHoy, actualizarEstadoSubtarea, fetchAllEventos, getCapacity } from '../services/api';
 import { cn } from '../lib/utils';
 
@@ -19,6 +20,20 @@ export function DashboardHoy() {
   const [showAllProximas, setShowAllProximas] = useState(false);
   const [showAllParaHoy, setShowAllParaHoy] = useState(false);
   const [dailyLimit, setDailyLimit] = useState(6);
+
+  // Estado para el modal de posponer (C1)
+  const [postponeModalTask, setPostponeModalTask] = useState(null);
+  const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
+
+  // Estado para feedback / microcopy tipo Toast (C4)
+  const [toastNotification, setToastNotification] = useState(null);
+
+  const showNotification = (message, type = 'success') => {
+    setToastNotification({ message, type });
+    setTimeout(() => {
+      setToastNotification(null);
+    }, 4000);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -38,8 +53,10 @@ export function DashboardHoy() {
         description: task.description || '',
         event: task.activity_title,
         time: task.target_date,
-        status: task.status === 'DONE' ? 'completada' : uiStatus,
+        status: task.status === 'DONE' ? 'completada' : task.status === 'POSTPONED' ? 'pospuesta' : uiStatus,
         backendStatus: task.status,
+        postpone_note: task.postpone_note || '',
+        done_at: task.done_at,
         activity_id: task.activity_id,
         estimated_hours: parseFloat(task.estimated_hours) || 0
       });
@@ -82,7 +99,6 @@ export function DashboardHoy() {
 
     const showAndScheduleHide = () => {
       setIsPopupRendered(true);
-      // Pequeño delay para asegurar que el DOM se haya actualizado antes de animar
       setTimeout(() => setIsPopupVisible(true), 10);
       
       hideTimeout = setTimeout(() => {
@@ -90,10 +106,8 @@ export function DashboardHoy() {
       }, 6000);
     };
 
-    // Mostrar inicialmente
     showAndScheduleHide();
 
-    // Repetir cada 8 minutos (480000 ms)
     showInterval = setInterval(() => {
       showAndScheduleHide();
     }, 8 * 60 * 1000);
@@ -104,7 +118,6 @@ export function DashboardHoy() {
     };
   }, [tasks.vencidas.length]);
 
-  // Manejar el desmontaje del DOM después del fade out (500ms es la duración de la transición)
   useEffect(() => {
     if (!isPopupVisible) {
       const timeout = setTimeout(() => setIsPopupRendered(false), 500);
@@ -112,6 +125,7 @@ export function DashboardHoy() {
     }
   }, [isPopupVisible]);
 
+  // C1, C3: Ejecutar tarea (Hecha / Pendiente) con actualización reactiva
   const handleToggleTask = async (taskId) => {
     let currentTask = null;
     let listName = '';
@@ -142,15 +156,85 @@ export function DashboardHoy() {
             : t
         )
       }));
+
+      if (newStatusBackend === 'DONE') {
+        showNotification('¡Gestión logística marcada como ejecutada con éxito!', 'success');
+      } else {
+        showNotification('Gestión reactivada como pendiente.', 'info');
+      }
     } catch (error) {
-      alert('Error al actualizar estado');
+      showNotification('Error al actualizar el estado de la gestión.', 'error');
     }
   };
+
+  // C1, C3: Posponer tarea con nota explicativa persistente
+  const handleOpenPostpone = (task) => {
+    setPostponeModalTask(task);
+    setIsPostponeModalOpen(true);
+  };
+
+  const handleConfirmPostpone = async (taskId, note) => {
+    let listName = '';
+    for (const key of ['vencidas', 'para_hoy', 'proximas']) {
+      if (tasks[key].some(t => t.id === taskId)) {
+        listName = key;
+        break;
+      }
+    }
+
+    try {
+      await actualizarEstadoSubtarea(taskId, 'POSTPONED', note);
+      
+      setTasks(prev => ({
+        ...prev,
+        [listName]: prev[listName].map(t => 
+          t.id === taskId 
+            ? { ...t, backendStatus: 'POSTPONED', status: 'pospuesta', postpone_note: note }
+            : t
+        )
+      }));
+
+      showNotification('Gestión pospuesta. Nota registrada y carga urgente actualizada.', 'warning');
+    } catch (error) {
+      showNotification('No se pudo posponer la gestión.', 'error');
+      throw error;
+    }
+  };
+
+  // C3: Cálculo consistente de la carga urgente pendiente de hoy
+  // Solo se consideran tareas que permanezcan en PENDING (ni ejecutadas ni pospuestas)
+  const horasUrgentesHoy = tasks.para_hoy
+    .filter(t => t.backendStatus === 'PENDING')
+    .reduce((acc, t) => acc + t.estimated_hours, 0);
 
   const hasAnyMainTask = tasks.para_hoy.length > 0 || tasks.proximas.length > 0 || eventos.length > 0;
 
   return (
     <div className="pb-12">
+      {/* Toast Notification (C4 Microcopy) */}
+      {toastNotification && (
+        <div className="fixed top-20 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className={cn(
+            "flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl text-sm font-medium",
+            toastNotification.type === 'success' ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-200" :
+            toastNotification.type === 'warning' ? "bg-amber-500/20 border-amber-500/40 text-amber-200" :
+            toastNotification.type === 'error' ? "bg-red-500/20 border-red-500/40 text-red-200" :
+            "bg-blue-500/20 border-blue-500/40 text-blue-200"
+          )}>
+            {toastNotification.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> :
+             toastNotification.type === 'warning' ? <Clock className="w-4 h-4 text-amber-400" /> :
+             <AlertCircle className="w-4 h-4" />}
+            <span>{toastNotification.message}</span>
+            <button 
+              onClick={() => setToastNotification(null)}
+              className="ml-2 text-white/50 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Premium Header */}
       <header className="pt-8 pb-4">
         <div className="max-w-5xl mx-auto px-6 flex items-end justify-between">
@@ -188,15 +272,15 @@ export function DashboardHoy() {
           </div>
         )}
 
-        {/* ALERTA DE SOBRECARGA */}
-        {!loading && !error && tasks.para_hoy.reduce((acc, t) => acc + t.estimated_hours, 0) > dailyLimit && (
-          <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 backdrop-blur-md mt-4">
+        {/* ALERTA DE SOBRECARGA DINÁMICA (C3) */}
+        {!loading && !error && horasUrgentesHoy > dailyLimit && (
+          <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 backdrop-blur-md mt-4 animate-in fade-in duration-300">
             <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
             <div>
               <h3 className="text-red-400 font-semibold text-sm">¡Sobrecarga Diaria Detectada!</h3>
               <p className="text-red-300/80 text-sm mt-1">
-                Tienes <strong>{tasks.para_hoy.reduce((acc, t) => acc + t.estimated_hours, 0)}h</strong> planificadas para hoy, superando tu límite configurado de <strong>{dailyLimit}h</strong>. 
-                Entra a los eventos para ajustar el tiempo o re-planificar.
+                Tienes <strong>{horasUrgentesHoy}h</strong> de gestiones urgentes pendientes para hoy, superando tu límite de <strong>{dailyLimit}h</strong>. 
+                Ejecuta o pospone gestiones para reducir la sobrecarga del día.
               </p>
             </div>
           </div>
@@ -222,15 +306,19 @@ export function DashboardHoy() {
           </div>
         ) : hasAnyMainTask ? (
           <>
-
             {/* Urgent Tasks (Urgentes) */}
             {tasks.para_hoy.length > 0 && (
               <section>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-outfit font-semibold text-slate-100 flex items-center gap-2">
-                     <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
-                    Urgente para hoy
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-outfit font-semibold text-slate-100 flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
+                      Urgente para hoy
+                    </h2>
+                    <span className="text-xs bg-white/5 text-slate-400 px-2.5 py-0.5 rounded-full border border-white/5">
+                      {horasUrgentesHoy}h pendientes
+                    </span>
+                  </div>
                   {tasks.para_hoy.length > 2 && (
                     <Button 
                       variant="ghost" 
@@ -244,7 +332,12 @@ export function DashboardHoy() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(showAllParaHoy ? tasks.para_hoy : tasks.para_hoy.slice(0, 2)).map(task => (
-                    <TaskItem key={task.id} task={task} onToggleComplete={handleToggleTask} />
+                    <TaskItem 
+                      key={task.id} 
+                      task={task} 
+                      onToggleComplete={handleToggleTask} 
+                      onPostpone={handleOpenPostpone}
+                    />
                   ))}
                 </div>
               </section>
@@ -287,7 +380,12 @@ export function DashboardHoy() {
                 </div>
                 <div className="flex flex-col gap-3">
                   {(showAllProximas ? tasks.proximas : tasks.proximas.slice(0, 3)).map(task => (
-                    <TaskItem key={task.id} task={task} onToggleComplete={handleToggleTask} />
+                    <TaskItem 
+                      key={task.id} 
+                      task={task} 
+                      onToggleComplete={handleToggleTask} 
+                      onPostpone={handleOpenPostpone}
+                    />
                   ))}
                 </div>
               </section>
@@ -301,7 +399,7 @@ export function DashboardHoy() {
             </div>
             <h3 className="text-xl font-outfit font-semibold text-white">Todo al día</h3>
             <p className="text-slate-400 mt-2 mb-6 max-w-sm mx-auto">
-              No tienes gestiones pendientes para hoy. ¡Disfruta tu día o planifica algo nuevo!
+              No tienes gestiones pendientes para hoy. ¡Disfruta tu día o planifica algo nuevo para tus eventos!
             </p>
             <Button 
               onClick={() => navigate('/crear')}
@@ -315,6 +413,14 @@ export function DashboardHoy() {
         )}
       </main>
 
+      {/* Modal de Posponer Tarea (C1) */}
+      <PostponeTaskModal
+        isOpen={isPostponeModalOpen}
+        onClose={() => setIsPostponeModalOpen(false)}
+        task={postponeModalTask}
+        onConfirm={handleConfirmPostpone}
+      />
+
       {/* Mini Ventana Emergente para Tareas Vencidas */}
       {isPopupRendered && !loading && !error && (
         <div 
@@ -324,7 +430,6 @@ export function DashboardHoy() {
           )}
         >
           <div className="relative bg-[#1a1423]/95 border border-red-500/30 backdrop-blur-xl p-5 rounded-2xl shadow-[0_15px_40px_rgba(239,68,68,0.25)] flex items-start gap-4 max-w-sm">
-            {/* Botón Cerrar */}
             <button 
               onClick={() => setIsPopupVisible(false)}
               className="absolute top-3 right-3 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-1 transition-colors"

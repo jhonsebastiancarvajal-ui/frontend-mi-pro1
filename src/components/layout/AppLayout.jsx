@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2, TrendingUp } from 'lucide-react';
 import { clearApiCache, getCapacity, updateCapacity } from '../../services/api';
 
 export function AppLayout() {
@@ -33,6 +33,7 @@ export function AppLayout() {
     { name: 'Vencidas', path: '/ayer', icon: History },
     { name: 'Hoy', path: '/hoy', icon: LayoutDashboard },
     { name: 'Próximos', path: '/proximos', icon: CalendarDays },
+    { name: 'Progreso', path: '/progreso', icon: TrendingUp },
     { name: 'Completados', path: '/completados', icon: Award },
   ];
 

@@ -10,6 +10,7 @@ import { RegisterView } from './views/auth/RegisterView'
 
 import { DashboardProximos } from './views/DashboardProximos'
 import { DashboardCompletados } from './views/DashboardCompletados'
+import { DashboardProgreso } from './views/DashboardProgreso'
 
 // Forzar actualización de Vite
 const ProtectedRoute = ({ children }) => {
@@ -40,6 +41,7 @@ function App() {
         <Route path="hoy" element={<DashboardHoy />} />
         <Route path="ayer" element={<DashboardAyer />} />
         <Route path="proximos" element={<DashboardProximos />} />
+        <Route path="progreso" element={<DashboardProgreso />} />
         <Route path="completados" element={<DashboardCompletados />} />
         <Route path="evento/:id" element={<DashboardEvento />} />
         <Route path="crear" element={<CrearEventoView />} />
