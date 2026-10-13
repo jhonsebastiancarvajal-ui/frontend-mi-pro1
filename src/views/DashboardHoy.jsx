@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { EventItem } from '../components/dashboard/EventItem';
 import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
+import { CompletedSuccessPopup } from '../components/dashboard/CompletedSuccessPopup';
 import { fetchTareasHoy, actualizarEstadoSubtarea, fetchAllEventos, getCapacity } from '../services/api';
 import { cn } from '../lib/utils';
 
@@ -27,6 +28,14 @@ export function DashboardHoy() {
 
   // Estado para feedback / microcopy tipo Toast (C4)
   const [toastNotification, setToastNotification] = useState(null);
+  const [successPopup, setSuccessPopup] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionText: '',
+    onAction: null,
+    isEventCompleted: false,
+  });
 
   const showNotification = (message, type = 'success') => {
     setToastNotification({ message, type });
@@ -164,6 +173,14 @@ export function DashboardHoy() {
 
       if (newStatusBackend === 'DONE') {
         showNotification('¡Gestión logística marcada como ejecutada con éxito!', 'success');
+        setSuccessPopup({
+          isOpen: true,
+          title: '¡Tarea completada!',
+          message: `Has completado "${currentTask.title}" (${currentTask.event || 'Evento'}). ¡Excelente avance!`,
+          actionText: 'Ver progreso',
+          onAction: () => navigate('/progreso'),
+          isEventCompleted: false,
+        });
       } else {
         showNotification('Gestión reactivada como pendiente.', 'info');
       }
@@ -464,6 +481,17 @@ export function DashboardHoy() {
           </div>
         </div>
       )}
+
+      {/* Mensaje emergente verde de éxito al completar tarea (C4) */}
+      <CompletedSuccessPopup
+        isOpen={successPopup.isOpen}
+        onClose={() => setSuccessPopup(prev => ({ ...prev, isOpen: false }))}
+        title={successPopup.title}
+        message={successPopup.message}
+        actionText={successPopup.actionText}
+        onAction={successPopup.onAction}
+        isEventCompleted={successPopup.isEventCompleted}
+      />
     </div>
   );
 }

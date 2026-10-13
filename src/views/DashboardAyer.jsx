@@ -3,17 +3,27 @@ import { History, AlertCircle, CalendarIcon, ChevronRight, Clock, StickyNote, Ch
 import { fetchTareasHoy, actualizarEstadoSubtarea } from '../services/api';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
+import { CompletedSuccessPopup } from '../components/dashboard/CompletedSuccessPopup';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 export function DashboardAyer() {
+  const navigate = useNavigate();
   const [vencidas, setVencidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('tareas'); // 'tareas' | 'eventos'
   const [postponeModalTask, setPostponeModalTask] = useState(null);
   const [isPostponeModalOpen, setIsPostponeModalOpen] = useState(false);
+  const [successPopup, setSuccessPopup] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionText: '',
+    onAction: null,
+    isEventCompleted: false,
+  });
 
   const loadData = async () => {
     try {
@@ -55,6 +65,14 @@ export function DashboardAyer() {
       // Si la completó, la removemos de la lista ya que solo debe mostrar pendientes
       if (newStatusBackend === 'DONE') {
         setVencidas(prev => prev.filter(t => t.id !== taskId));
+        setSuccessPopup({
+          isOpen: true,
+          title: '¡Tarea completada!',
+          message: `Has rescatado y completado la gestión atrasada "${currentTask.title}".`,
+          actionText: 'Ver progreso',
+          onAction: () => navigate('/progreso'),
+          isEventCompleted: false,
+        });
       } else {
         setVencidas(prev => prev.map(t => 
           t.id === taskId 
@@ -247,6 +265,17 @@ export function DashboardAyer() {
         onClose={() => setIsPostponeModalOpen(false)}
         task={postponeModalTask}
         onConfirm={handleConfirmPostpone}
+      />
+
+      {/* Mensaje emergente verde de éxito al completar tarea (C4) */}
+      <CompletedSuccessPopup
+        isOpen={successPopup.isOpen}
+        onClose={() => setSuccessPopup(prev => ({ ...prev, isOpen: false }))}
+        title={successPopup.title}
+        message={successPopup.message}
+        actionText={successPopup.actionText}
+        onAction={successPopup.onAction}
+        isEventCompleted={successPopup.isEventCompleted}
       />
     </div>
   );

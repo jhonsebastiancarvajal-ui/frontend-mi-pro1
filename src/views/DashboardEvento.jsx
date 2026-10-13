@@ -4,6 +4,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, Users, CheckCircle2, ChevronLeft, C
 import { Button } from '../components/ui/button';
 import { TaskItem } from '../components/dashboard/TaskItem';
 import { PostponeTaskModal } from '../components/dashboard/PostponeTaskModal';
+import { CompletedSuccessPopup } from '../components/dashboard/CompletedSuccessPopup';
 import { cn } from '../lib/utils';
 import { 
   fetchEventoPorId, 
@@ -43,6 +44,14 @@ export function DashboardEvento() {
   const [conflictData, setConflictData] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [showToast, setShowToast] = useState(false);
+  const [successPopup, setSuccessPopup] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionText: '',
+    onAction: null,
+    isEventCompleted: false,
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const tasksPerPage = 3;
@@ -222,6 +231,24 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
       }
       return t;
     }));
+
+    // Notificación emergente verde de éxito (C4)
+    if (isDone) {
+      const totalCount = tasks.length;
+      const completedCount = tasks.filter(t => (t.id === taskId ? true : (t.status === 'completada' || t.backendStatus === 'DONE'))).length;
+      const isAllDone = totalCount > 0 && completedCount === totalCount;
+
+      setSuccessPopup({
+        isOpen: true,
+        title: isAllDone ? '¡Evento completado!' : '¡Tarea completada!',
+        message: isAllDone 
+          ? `¡Felicidades! Has completado todas las ${totalCount} gestiones de "${eventDetails.title}".`
+          : `Has ejecutado "${task.title}". Llevas ${completedCount} de ${totalCount} gestiones completadas.`,
+        actionText: isAllDone ? 'Ver en Completados' : 'Ver progreso',
+        onAction: () => navigate(isAllDone ? '/completados' : '/progreso'),
+        isEventCompleted: isAllDone
+      });
+    }
 
     try {
       await actualizarEstadoSubtarea(taskId, newStatusBackend);
@@ -956,6 +983,17 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
         onClose={() => setIsPostponeModalOpen(false)}
         task={postponeModalTask}
         onConfirm={handleConfirmPostpone}
+      />
+
+      {/* Mensaje emergente verde de éxito al completar tarea o evento */}
+      <CompletedSuccessPopup
+        isOpen={successPopup.isOpen}
+        onClose={() => setSuccessPopup(prev => ({ ...prev, isOpen: false }))}
+        title={successPopup.title}
+        message={successPopup.message}
+        actionText={successPopup.actionText}
+        onAction={successPopup.onAction}
+        isEventCompleted={successPopup.isEventCompleted}
       />
     </div>
   );
