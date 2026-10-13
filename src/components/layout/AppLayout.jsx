@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, History, CalendarDays, Award, Settings, X, Save, CheckCircle2, TrendingUp, LogOut } from 'lucide-react';
 import { clearApiCache, getCapacity, updateCapacity } from '../../services/api';
 
 export function AppLayout() {
@@ -29,6 +29,15 @@ export function AppLayout() {
       setIsSaving(false);
     }
   };
+
+  const handleLogout = () => {
+    clearApiCache();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_picture');
+    navigate('/login');
+  };
+
   const navItems = [
     { name: 'Vencidas', path: '/ayer', icon: History },
     { name: 'Hoy', path: '/hoy', icon: LayoutDashboard },
@@ -37,90 +46,109 @@ export function AppLayout() {
     { name: 'Completados', path: '/completados', icon: Award },
   ];
 
+  const rawUserName = localStorage.getItem('user_name') || '';
+  const shortUserName = rawUserName ? rawUserName.split(' ')[0] : 'Usuario';
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Premium Navbar */}
-      <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-              <LayoutDashboard className="w-5 h-5 text-primary" />
+      {/* Premium Spacious Navbar */}
+      <nav className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          
+          {/* Logo */}
+          <div 
+            onClick={() => navigate('/hoy')}
+            className="flex items-center gap-2.5 cursor-pointer shrink-0"
+          >
+            <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(var(--primary),0.2)]">
+              <LayoutDashboard className="w-4 h-4 text-primary" />
             </div>
-            <span className="font-outfit font-bold text-xl tracking-tight text-white">
+            <span className="font-outfit font-bold text-lg sm:text-xl tracking-tight text-white">
               Task<span className="text-primary">Flow</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/5">
+          {/* Center Navigation Pills with generous breathing space */}
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10 shadow-inner overflow-x-auto no-scrollbar">
             {navItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                  `flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 shrink-0 ${
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]'
+                      ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.35)] font-semibold'
                       : 'text-slate-400 hover:text-white hover:bg-white/10'
                   }`
                 }
               >
-                <item.icon className="w-4 h-4" />
-                {item.name}
+                <item.icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{item.name}</span>
               </NavLink>
             ))}
           </div>
           
-          {/* Auth Buttons */}
-          <div className="flex items-center gap-3">
+          {/* Right Action / Profile Area */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {localStorage.getItem('token') ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-white/5 rounded-full py-1 pr-3 pl-1 border border-white/10">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                
+                {/* User Pill with avatar and clean name */}
+                <div 
+                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 rounded-full py-1 pr-3 pl-1 border border-white/10 transition-colors cursor-default max-w-[140px] sm:max-w-[180px]"
+                  title={rawUserName}
+                >
                   {localStorage.getItem('user_picture') ? (
-                    <img src={localStorage.getItem('user_picture')} alt="Profile" className="w-7 h-7 rounded-full border border-white/20" referrerPolicy="no-referrer" />
+                    <img 
+                      src={localStorage.getItem('user_picture')} 
+                      alt="Profile" 
+                      className="w-6 h-6 rounded-full border border-white/20 shrink-0" 
+                      referrerPolicy="no-referrer" 
+                    />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm border border-primary/30">
-                      {localStorage.getItem('user_name') ? localStorage.getItem('user_name').charAt(0).toUpperCase() : 'U'}
+                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs border border-primary/30 shrink-0">
+                      {rawUserName ? rawUserName.charAt(0).toUpperCase() : 'U'}
                     </div>
                   )}
-                  <span className="text-sm font-medium text-slate-200 hidden sm:block">
-                    {localStorage.getItem('user_name')}
+                  <span className="text-xs sm:text-sm font-medium text-slate-200 truncate">
+                    {shortUserName}
                   </span>
                 </div>
+
+                {/* Settings Button */}
                 <button 
                   onClick={() => setIsSettingsOpen(true)}
-                  className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/10 transition-colors"
-                  title="Configuración"
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/10 transition-colors text-slate-300 hover:text-white"
+                  title="Configuración de capacidad diaria"
                 >
-                  <Settings className="w-4 h-4 text-slate-300" />
+                  <Settings className="w-3.5 h-3.5" />
                 </button>
+
+                {/* Streamlined Logout Button */}
                 <button 
-                  onClick={() => {
-                    clearApiCache();
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user_name');
-                    localStorage.removeItem('user_picture');
-                    navigate('/login');
-                  }}
-                  className="text-sm font-medium px-4 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 transition-colors border border-red-500/30"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-red-500/15 hover:bg-red-500/25 text-red-300 hover:text-red-200 transition-colors border border-red-500/20"
+                  title="Cerrar sesión"
                 >
-                  Cerrar sesión
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Salir</span>
                 </button>
               </div>
             ) : (
-              <>
+              <div className="flex items-center gap-2">
                 <NavLink 
                   to="/login"
-                  className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                  className="text-xs sm:text-sm font-medium text-slate-300 hover:text-white px-3 py-1.5 transition-colors"
                 >
                   Iniciar sesión
                 </NavLink>
                 <NavLink 
                   to="/registro"
-                  className="text-sm font-medium px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/10"
+                  className="text-xs sm:text-sm font-medium px-3.5 py-1.5 rounded-full bg-primary hover:bg-primary/90 text-white transition-colors shadow-[0_0_15px_rgba(var(--primary),0.3)]"
                 >
                   Registrarme
                 </NavLink>
-              </>
+              </div>
             )}
           </div>
         </div>
