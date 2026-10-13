@@ -204,7 +204,7 @@ export function DashboardAyer() {
                                     {task.description && (
                                       <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
                                     )}
-                                    {task.postpone_note && (
+                                    {task.postpone_note && (task.status === 'pospuesta' || task.backendStatus === 'POSTPONED') && (
                                       <div className="mt-1.5 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-amber-300/90 flex items-start gap-1.5">
                                         <StickyNote className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                                         <span><strong>Nota:</strong> {task.postpone_note}</span>

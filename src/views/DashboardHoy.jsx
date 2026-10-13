@@ -152,7 +152,12 @@ export function DashboardHoy() {
         ...prev,
         [listName]: prev[listName].map(t => 
           t.id === taskId 
-            ? { ...t, backendStatus: newStatusBackend, status: newUiStatus }
+            ? { 
+                ...t, 
+                backendStatus: newStatusBackend, 
+                status: newUiStatus,
+                postpone_note: newStatusBackend === 'DONE' ? '' : t.postpone_note 
+              }
             : t
         )
       }));

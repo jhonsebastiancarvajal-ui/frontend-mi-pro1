@@ -72,7 +72,9 @@ export const fetchEventoPorId = async (eventoId) => {
 export const actualizarEstadoSubtarea = async (subtareaId, nuevoEstado, postponeNote = undefined) => {
   try {
     const payload = { status: nuevoEstado };
-    if (postponeNote !== undefined && postponeNote !== null) {
+    if (nuevoEstado === 'DONE') {
+      payload.postpone_note = '';
+    } else if (postponeNote !== undefined && postponeNote !== null) {
       payload.postpone_note = postponeNote;
     }
 

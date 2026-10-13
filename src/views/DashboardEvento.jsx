@@ -205,7 +205,24 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
 
   const handleToggleTask = async (taskId) => {
     const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
     const newStatusBackend = (task.status === 'completada' || task.backendStatus === 'DONE') ? 'PENDING' : 'DONE';
+    const isDone = newStatusBackend === 'DONE';
+
+    // Actualización optimista inmediata en UI
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          status: isDone ? 'completada' : 'urgente',
+          backendStatus: newStatusBackend,
+          postpone_note: isDone ? '' : t.postpone_note,
+          done_at: isDone ? new Date().toISOString() : null,
+        };
+      }
+      return t;
+    }));
+
     try {
       await actualizarEstadoSubtarea(taskId, newStatusBackend);
       loadEvent();
@@ -214,6 +231,7 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
       }
     } catch (error) {
       alert('Error al actualizar estado');
+      loadEvent();
     }
   };
 
@@ -752,7 +770,7 @@ ${editEventData.attendees ? `\nInvitados: ${editEventData.attendees}` : ''}`.tri
                     </div>
                   </div>
                   
-                  {selectedTask.postpone_note && (
+                  {selectedTask.postpone_note && (selectedTask.status === 'pospuesta' || selectedTask.backendStatus === 'POSTPONED') && (
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-300 flex items-start gap-2">
                       <StickyNote className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
                       <div>

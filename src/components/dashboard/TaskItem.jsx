@@ -88,7 +88,7 @@ export function TaskItem({ task, onToggleComplete, onPostpone, onViewMore }) {
             )}
 
             {/* NOTA EXPLICATIVA PERSISTENTE (C1, C4) */}
-            {task.postpone_note && (
+            {task.postpone_note && isPostponed && !isCompleted && (
               <div className="mt-2.5 text-xs bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-amber-300/90 flex items-start gap-2">
                 <StickyNote className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-400" />
                 <div className="flex-1">
