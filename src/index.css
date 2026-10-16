@@ -1,0 +1,62 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    /* Dark Premium Theme */
+    --background: 222 47% 11%; /* Very dark slate */
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 14%; /* Slightly lighter than background for cards */
+    --card-foreground: 210 40% 98%;
+    
+    /* Neon/Vibrant Accent */
+    --primary: 250 80% 60%; /* Bright Indigo accent */
+    --primary-foreground: 210 40% 98%;
+    
+    --destructive: 0 84.2% 60.2%; /* Red */
+    --destructive-foreground: 210 40% 98%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --border: 217.2 32.6% 17.5%;
+    --radius: 1rem;
+    
+    /* Force native inputs (date, time) to render in dark mode */
+    color-scheme: dark;
+  }
+
+  /* Ocultar las flechas de los inputs de tipo number */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+  }
+  
+  /* Mejorar un poco el ícono nativo del calendario para que resalte más si es necesario */
+  ::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  ::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+  }
+}
